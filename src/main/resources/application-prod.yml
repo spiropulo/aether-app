@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  graphql:
+    schema:
+      printer:
+        enabled: ${GRAPHQL_SCHEMA_PRINTER_ENABLED:false}
+
+  cloud:
+    gcp:
+      project-id: ${GCP_PROJECT_ID}
+      firestore:
+        enabled: true
+      pubsub:
+        enabled: true
+
+aather:
+  pubsub:
+    tenant-topic: ${AATHER_PUBSUB_TENANT_TOPIC:tenant-events}
+

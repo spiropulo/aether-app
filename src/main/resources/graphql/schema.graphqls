@@ -1,0 +1,40 @@
+type Tenant {
+  id: ID!
+  tenantId: String!
+  email: String!
+  displayName: String
+  status: TenantStatus!
+  subscriptionPlan: String
+  createdAt: String
+  updatedAt: String
+}
+
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+input CreateTenantInput {
+  tenantId: String!
+  email: String!
+  displayName: String
+  subscriptionPlan: String
+}
+
+input UpdateTenantInput {
+  displayName: String
+  subscriptionPlan: String
+  status: TenantStatus
+}
+
+type Query {
+  tenants(tenantId: String!): [Tenant!]!
+  tenant(id: ID!, tenantId: String!): Tenant
+}
+
+type Mutation {
+  createTenant(input: CreateTenantInput!): Tenant!
+  updateTenant(id: ID!, tenantId: String!, input: UpdateTenantInput!): Tenant!
+  deleteTenant(id: ID!, tenantId: String!): Boolean!
+}

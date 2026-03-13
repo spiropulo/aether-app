@@ -1,0 +1,24 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  cloud:
+    gcp:
+      project-id: ${GCP_PROJECT_ID:aether}
+      credentials:
+        location: ${GCP_CREDENTIALS_LOCATION:}
+      firestore:
+        enabled: true
+        project-id: ${GCP_PROJECT_ID:aether}
+        emulator:
+          enabled: true
+        host-port: ${FIRESTORE_EMULATOR_HOST:localhost:8075}
+      pubsub:
+        enabled: true
+        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+
+aather:
+  pubsub:
+    tenant-topic: ${AATHER_PUBSUB_TENANT_TOPIC:tenant-events}
+

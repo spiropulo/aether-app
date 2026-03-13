@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: aather
+  profiles:
+    default: local
+  graphql:
+    schema:
+      printer:
+        enabled: ${GRAPHQL_SCHEMA_PRINTER_ENABLED:true}
+
+server:
+  port: 8080
+
+aather:
+  pubsub:
+    # Optional Pub/Sub topic to emit tenant lifecycle events (TENANT_CREATED/UPDATED/DELETED)
+    tenant-topic: ${AATHER_PUBSUB_TENANT_TOPIC:}
+

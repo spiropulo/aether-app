@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Aather – GraphiQL</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="https://unpkg.com/graphiql@2.4.7/graphiql.min.css" />
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #graphiql {
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+<div id="graphiql">Loading…</div>
+
+<script
+  crossorigin
+  src="https://unpkg.com/react@18.2.0/umd/react.development.js">
+</script>
+<script
+  crossorigin
+  src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js">
+</script>
+<script
+  crossorigin
+  src="https://unpkg.com/graphiql@2.4.7/graphiql.min.js">
+</script>
+
+<script>
+  const fetcher = async (graphQLParams) => {
+    const response = await fetch('/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(graphQLParams),
+      credentials: 'same-origin',
+    });
+    return response.json();
+  };
+
+  const root = ReactDOM.createRoot(document.getElementById('graphiql'));
+  root.render(
+    React.createElement(GraphiQL, {
+      fetcher,
+      defaultQuery: 'query {\n  tenants(tenantId: "demo-tenant") {\n    id\n    email\n  }\n}\n',
+    }),
+  );
+</script>
+</body>
+</html>
+
