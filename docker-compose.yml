@@ -1,0 +1,21 @@
+services:
+  # GCS emulator for local PDF uploads (implements GCS JSON API; Java client compatible)
+  fake-gcs:
+    image: fsouza/fake-gcs-server:latest
+    container_name: fake-gcs-server
+    ports:
+      - "9195:8000"
+    command: ["-scheme", "http", "-port", "8000"]
+    volumes:
+      - fake-gcs-data:/data
+
+  # Pub/Sub emulator for estimate event processing
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: pubsub-emulator
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--project=aether", "--host-port=0.0.0.0:8085"]
+    ports:
+      - "8085:8085"
+
+volumes:
+  fake-gcs-data:
