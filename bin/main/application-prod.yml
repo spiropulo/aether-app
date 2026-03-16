@@ -26,6 +26,7 @@ spring:
 aether:
   agent:
     process-url: ${AETHER_AGENT_PROCESS_URL:}
+    tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:}
   pubsub:
     tenant-topic: ${AETHER_PUBSUB_TENANT_TOPIC:}
     estimate-topic: ${AETHER_PUBSUB_ESTIMATE_TOPIC:}

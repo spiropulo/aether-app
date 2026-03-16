@@ -31,6 +31,8 @@ aether:
   agent:
     # Schema Mapper Agent base URL for PDF processing. When set, Pub/Sub listener forwards PDFs here.
     process-url: ${AETHER_AGENT_PROCESS_URL:}
+    # Tenant-Adaptive Agent for project pricing (agentic pricing workflow).
+    tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:}
   pubsub:
     # Optional: emit tenant lifecycle events (TENANT_CREATED/UPDATED/DELETED)
     tenant-topic: ${AETHER_PUBSUB_TENANT_TOPIC:}

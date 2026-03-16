@@ -1,0 +1,104 @@
+{
+    "metadata": {
+      "agent_title": "Economy / Budget-Focused U.S. Construction & Landscape Intelligence Agent",
+      "tenant_context": "Cost-Effective / Value-Engineered Estimation",
+      "market_focus": "National Minimums / Rural Market Pricing",
+      "industry_context": "Construction & Landscape Estimation Gardening"
+    },
+    "labor_intelligence": {
+      "burden_multiplier": 1.20,
+      "description": "Base-market burdened rates with minimal overhead, focusing on production-style labor efficiency.",
+      "profiles": [
+        {
+          "role": "Master Mason & Specialist",
+          "fully_burdened_rate": 85.00,
+          "keywords": ["White Country Squire stone", "masonry finish", "Dekton fabrication", "pool decommissioning", "structural subframe"],
+          "min_man_hours": 2
+        },
+        {
+          "role": "Skilled Carpenter & Installer",
+          "fully_burdened_rate": 55.00,
+          "keywords": ["Azek Weathered Teak", "Belgard pavers", "Redwood pergola", "horizontal redwood fence", "Hunter valves", "low voltage lighting"],
+          "min_man_hours": 1
+        },
+        {
+          "role": "Landscape & Site Technician",
+          "fully_burdened_rate": 35.00,
+          "keywords": ["site preparation", "Pacific Olive turf installation", "gopher wire", "planting labor", "drainage installation", "grading"],
+          "min_man_hours": 2
+        }
+      ]
+    },
+    "material_item_intelligence": {
+      "premium_benchmarks": [
+        {
+          "category": "Hardscape - Pavers",
+          "primary_spec": "Standard Grade Concrete Brick / Stepping Stone",
+          "uom": "SF",
+          "unit_cost": 9.50,
+          "waste_factor": 1.05,
+          "installation_depth_standard": "5 inch excavation, 3 inch base rock, 1 inch sand"
+        },
+        {
+          "category": "Hardscape - Decking",
+          "primary_spec": "Standard Pressure Treated (PT) Pine",
+          "uom": "SF",
+          "unit_cost": 15.00,
+          "waste_factor": 1.07,
+          "subframe_spec": "Economy Grade PT Lumber"
+        },
+        {
+          "category": "Kitchen & Appliances",
+          "stone_veneer": "Stucco Finish / Painted Concrete",
+          "countertop_spec": "Tile / Polished Concrete",
+          "appliance_buffer": 3500.00,
+          "keywords": ["BBQ Island", "Freestanding Bar", "under-cabinet storage"]
+        },
+        {
+          "category": "Lawn & Softscape",
+          "spec": "Economy Grade Synthetic Turf / Standard Sod",
+          "pile_height": "1.2 inch",
+          "infill_type": "Basic Silica Sand",
+          "uom": "SF",
+          "unit_cost": 7.50
+        }
+      ]
+    },
+    "inference_logic": {
+      "conservative_defaults": {
+        "missing_location": "Low-Cost Rural Average",
+        "missing_soil_condition": "Assume clear soil with no grading required.",
+        "missing_access": "Assume 'Easy Access' for standard vehicles; no machinery required."
+      },
+      "automatic_task_bundling": [
+        {
+          "trigger": "Planting",
+          "includes": ["Native Soil Backfill", "Manual Watering"]
+        },
+        {
+          "trigger": "Hardscape",
+          "includes": ["Basic Joint Sand", "Standard On-site Disposal"]
+        },
+        {
+          "trigger": "Outdoor Features",
+          "includes": ["Basic Concrete Post-set"]
+        }
+      ],
+      "pool_specific_logic": {
+        "decommissioning_estimate": 10500.00,
+        "method": "Basic fill-in with native soil."
+      }
+    },
+    "operational_safety": {
+      "mandatory_fees": [
+        { "item": "Portable Toilet Fee", "cost": 95.00, "note": "Shared site/local rate" },
+        { "item": "Dump Fees / Roll-off Container", "cost": 300.00, "note": "Local landfill drop fees" },
+        { "item": "Equipment Usage", "cost": 150.00, "note": "General tool allowance" }
+      ],
+      "waste_policy": {
+        "lumber": 1.05,
+        "pavers": 1.05,
+        "turf": 1.03
+      }
+    }
+}

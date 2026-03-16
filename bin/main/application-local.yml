@@ -34,6 +34,8 @@ aether:
   agent:
     # Schema Mapper Agent (Aether AI). Default for local: agent runs on port 8055.
     process-url: ${AETHER_AGENT_PROCESS_URL:http://localhost:8055/api/v1/schema-mapper/process}
+    # Tenant-Adaptive Agent for project pricing.
+    tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:http://localhost:8055/api/v1/tenant-adaptive/process}
   pubsub:
     tenant-topic: ${AETHER_PUBSUB_TENANT_TOPIC:tenant-events}
     # Topic for PDF processing events (AI agent). Create in Pub/Sub emulator.

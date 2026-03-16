@@ -1,7 +1,7 @@
 package com.aether.app.estimate;
 
-import com.aether.app.pretrain.PretrainData;
-import com.aether.app.pretrain.PretrainService;
+import com.aether.app.pretrain.PretrainedData;
+import com.aether.app.pretrain.PretrainedService;
 import com.aether.app.trainingdata.TrainingData;
 import com.aether.app.trainingdata.TrainingDataRepository;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -28,14 +28,14 @@ public class TrainingContextService {
 
     private static final Logger log = LoggerFactory.getLogger(TrainingContextService.class);
 
-    private final PretrainService pretrainService;
+    private final PretrainedService pretrainedService;
     private final TrainingDataRepository trainingDataRepository;
     private final ObjectMapper objectMapper;
 
-    public TrainingContextService(PretrainService pretrainService,
+    public TrainingContextService(PretrainedService pretrainedService,
                                    TrainingDataRepository trainingDataRepository,
                                    ObjectMapper objectMapper) {
-        this.pretrainService = pretrainService;
+        this.pretrainedService = pretrainedService;
         this.trainingDataRepository = trainingDataRepository;
         this.objectMapper = objectMapper;
     }
@@ -104,10 +104,30 @@ public class TrainingContextService {
     public record RunContextEntryDisplay(String source, String id, String title, String contentPreview) {}
 
     /**
+     * Fetch training context for a specific project: tenant-level (catalog + custom with projectId=null)
+     * plus project-level (custom with projectId set). Merged and serialized for the tenant-adaptive agent.
+     * Returns empty string if no training exists.
+     */
+    public Mono<String> getTrainingContextForProject(String tenantId, String projectId) {
+        return buildTrainingContextForProject(tenantId, projectId)
+                .flatMap(ctx -> {
+                    if (ctx.catalogEntries().isEmpty() && ctx.tenantCustomEntries().isEmpty() && ctx.projectCustomEntries().isEmpty()) {
+                        return Mono.just("");
+                    }
+                    try {
+                        return Mono.just(objectMapper.writeValueAsString(ctx));
+                    } catch (JsonProcessingException e) {
+                        log.error("Failed to serialize training context for tenant {} project {}: {}", tenantId, projectId, e.getMessage());
+                        return Mono.just("");
+                    }
+                });
+    }
+
+    /**
      * Check if the tenant has any training data (catalog or custom).
      */
     public Mono<Boolean> hasTrainingData(String tenantId) {
-        Mono<Boolean> hasCatalog = pretrainService.getTenantSelectedPretrainData(tenantId)
+        Mono<Boolean> hasCatalog = pretrainedService.getTenantSelectedPretrainData(tenantId)
                 .hasElements();
         Mono<Boolean> hasCustom = trainingDataRepository.findAllByTenantId(tenantId)
                 .filter(td -> td.getProjectId() == null)
@@ -117,7 +137,7 @@ public class TrainingContextService {
     }
 
     private Mono<TrainingContextDto> buildTrainingContext(String tenantId) {
-        Flux<TrainingContextEntry> catalogFlux = pretrainService.getTenantSelectedPretrainData(tenantId)
+        Flux<TrainingContextEntry> catalogFlux = pretrainedService.getTenantSelectedPretrainData(tenantId)
                 .map(this::toCatalogEntry);
 
         Flux<TrainingContextEntry> customFlux = trainingDataRepository.findAllByTenantId(tenantId)
@@ -140,7 +160,31 @@ public class TrainingContextService {
                 });
     }
 
-    private TrainingContextEntry toCatalogEntry(PretrainData pd) {
+    private Mono<ProjectTrainingContextDto> buildTrainingContextForProject(String tenantId, String projectId) {
+        Flux<TrainingContextEntry> catalogFlux = pretrainedService.getTenantSelectedPretrainData(tenantId)
+                .map(this::toCatalogEntry);
+
+        Flux<TrainingContextEntry> tenantCustomFlux = trainingDataRepository.findAllByTenantId(tenantId)
+                .filter(td -> td.getProjectId() == null)
+                .map(this::toCustomEntry);
+
+        Flux<TrainingContextEntry> projectCustomFlux = trainingDataRepository.findAllByTenantId(tenantId)
+                .filter(td -> projectId.equals(td.getProjectId()))
+                .map(this::toCustomEntry);
+
+        Mono<List<TrainingContextEntry>> catalogList = catalogFlux.collectList();
+        Mono<List<TrainingContextEntry>> tenantCustomList = tenantCustomFlux.collectList();
+        Mono<List<TrainingContextEntry>> projectCustomList = projectCustomFlux.collectList();
+
+        return Mono.zip(catalogList, tenantCustomList, projectCustomList)
+                .map(tuple -> new ProjectTrainingContextDto(
+                        tuple.getT1(),
+                        tuple.getT2(),
+                        tuple.getT3()
+                ));
+    }
+
+    private TrainingContextEntry toCatalogEntry(PretrainedData pd) {
         return new TrainingContextEntry(
                 "catalog",
                 pd.getId(),
@@ -164,6 +208,13 @@ public class TrainingContextService {
     public record TrainingContextDto(
             List<TrainingContextEntry> catalogEntries,
             List<TrainingContextEntry> customEntries
+    ) {}
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ProjectTrainingContextDto(
+            List<TrainingContextEntry> catalogEntries,
+            List<TrainingContextEntry> tenantCustomEntries,
+            List<TrainingContextEntry> projectCustomEntries
     ) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

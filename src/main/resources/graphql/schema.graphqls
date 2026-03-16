@@ -93,6 +93,7 @@ type Task {
   tenantId: String!
   projectId: String!
   name: String!
+  """Short summary of the task name."""
   description: String
   createdAt: String
   updatedAt: String
@@ -118,85 +119,57 @@ input UpdateTaskInput {
   description: String
 }
 
-# ─── Labor ───────────────────────────────────────────────────────────────────
+# ─── Offer ────────────────────────────────────────────────────────────────────
 
-type Labor {
+"""
+A line item under a Task. Unifies materials, labor, and services.
+Name: short title (e.g. "Industrial Drill" or "Consulting").
+Description: detailed specs or scope of work.
+Total: calculated as quantity × unitCost.
+"""
+type Offer {
   id: ID!
   tenantId: String!
   projectId: String!
   taskId: String!
   name: String!
   description: String
-  time: Float
-  cost: Float
-  createdAt: String
-  updatedAt: String
-}
-
-type LaborPage {
-  items: [Labor!]!
-  total: Int!
-  limit: Int!
-  offset: Int!
-  hasNext: Boolean!
-}
-
-input CreateLaborInput {
-  tenantId: String!
-  projectId: String!
-  taskId: String!
-  name: String!
-  description: String
-  time: Float
-  cost: Float
-}
-
-input UpdateLaborInput {
-  name: String
-  description: String
-  time: Float
-  cost: Float
-}
-
-# ─── Item ────────────────────────────────────────────────────────────────────
-
-type Item {
-  id: ID!
-  tenantId: String!
-  projectId: String!
-  taskId: String!
-  name: String!
-  description: String
-  quantity: Int
-  cost: Float
+  uom: String
+  quantity: Float
+  unitCost: Float
+  duration: String
   total: Float
   createdAt: String
   updatedAt: String
 }
 
-type ItemPage {
-  items: [Item!]!
+type OfferPage {
+  items: [Offer!]!
   total: Int!
   limit: Int!
   offset: Int!
   hasNext: Boolean!
 }
 
-input CreateItemInput {
+input CreateOfferInput {
   tenantId: String!
   projectId: String!
   taskId: String!
   name: String!
   description: String
-  quantity: Int
-  cost: Float
+  uom: String
+  quantity: Float
+  unitCost: Float
+  duration: String
 }
 
-input UpdateItemInput {
+input UpdateOfferInput {
   name: String
   description: String
-  quantity: Int
-  cost: Float
+  uom: String
+  quantity: Float
+  unitCost: Float
+  duration: String
 }
 
 # ─── Auth / User Profile ─────────────────────────────────────────────────────
@@ -303,10 +276,11 @@ input AddMemberInput {
 
 # ─── Training Data ───────────────────────────────────────────────────────────
 
-# ─── Pretrain Data (Global Catalog) ──────────────────────────────────────────
+# ─── Pretrained Data (Global Catalog) ─────────────────────────────────────────
 
 """
-A system-managed, pre-built training dataset loaded from files at startup.
+A system-managed, pre-built training dataset loaded from JSON files in training-data/ at startup.
+Title comes from metadata.agent_title; trainingContent is the full JSON payload.
 Tenants browse the catalog via pretrainCatalog and select entries to use as
 default training context for their domain or for a specific task.
 Agentic Agents fetch the selected entries before executing.
@@ -400,13 +374,11 @@ type Query {
   tasks(tenantId: String!, projectId: String!, page: PageInput): TaskPage!
   task(id: ID!, tenantId: String!, projectId: String!): Task
 
-  # Labor
-  labors(tenantId: String!, projectId: String!, taskId: String!, page: PageInput): LaborPage!
-  labor(id: ID!, tenantId: String!, projectId: String!, taskId: String!): Labor
-
-  # Item
-  items(tenantId: String!, projectId: String!, taskId: String!, page: PageInput): ItemPage!
-  item(id: ID!, tenantId: String!, projectId: String!, taskId: String!): Item
+  # Offer
+  offers(tenantId: String!, projectId: String!, taskId: String!, page: PageInput): OfferPage!
+  """All offers for a project. Used for project and task total aggregation."""
+  offersByProject(tenantId: String!, projectId: String!): [Offer!]!
+  offer(id: ID!, tenantId: String!, projectId: String!, taskId: String!): Offer
 
   # User Profiles
   """List all user profiles for a tenant. Optionally filter with a search term (matches username, email, first/last/display name)."""
@@ -453,15 +425,10 @@ type Mutation {
   updateTask(id: ID!, tenantId: String!, projectId: String!, input: UpdateTaskInput!): Task!
   deleteTask(id: ID!, tenantId: String!, projectId: String!): Boolean!
 
-  # Labor
-  createLabor(input: CreateLaborInput!): Labor!
-  updateLabor(id: ID!, tenantId: String!, projectId: String!, taskId: String!, input: UpdateLaborInput!): Labor!
-  deleteLabor(id: ID!, tenantId: String!, projectId: String!, taskId: String!): Boolean!
-
-  # Item
-  createItem(input: CreateItemInput!): Item!
-  updateItem(id: ID!, tenantId: String!, projectId: String!, taskId: String!, input: UpdateItemInput!): Item!
-  deleteItem(id: ID!, tenantId: String!, projectId: String!, taskId: String!): Boolean!
+  # Offer
+  createOffer(input: CreateOfferInput!): Offer!
+  updateOffer(id: ID!, tenantId: String!, projectId: String!, taskId: String!, input: UpdateOfferInput!): Offer!
+  deleteOffer(id: ID!, tenantId: String!, projectId: String!, taskId: String!): Boolean!
 
   # Auth
   """Register a new user and receive a JWT token. Creates the organization automatically if it does not exist."""

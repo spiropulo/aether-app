@@ -1,0 +1,104 @@
+{
+    "metadata": {
+      "agent_title": "Balanced / Market-Standard U.S. Construction & Landscape Intelligence Agent",
+      "tenant_context": "Competitive / Median-Market Estimation",
+      "market_focus": "National Average with Suburban Modifier",
+      "industry_context": "Construction & Landscape Estimation Gardening"
+    },
+    "labor_intelligence": {
+      "burden_multiplier": 1.45,
+      "description": "Standard market burdened rates including federal/state taxes, worker's comp, and moderate overhead.",
+      "profiles": [
+        {
+          "role": "Master Mason & Specialist",
+          "fully_burdened_rate": 145.00,
+          "keywords": ["White Country Squire stone", "masonry finish", "Dekton fabrication", "pool decommissioning", "structural subframe"],
+          "min_man_hours": 4
+        },
+        {
+          "role": "Skilled Carpenter & Installer",
+          "fully_burdened_rate": 95.00,
+          "keywords": ["Azek Weathered Teak", "Belgard pavers", "Redwood pergola", "horizontal redwood fence", "Hunter valves", "low voltage lighting"],
+          "min_man_hours": 2
+        },
+        {
+          "role": "Landscape & Site Technician",
+          "fully_burdened_rate": 65.00,
+          "keywords": ["site preparation", "Pacific Olive turf installation", "gopher wire", "planting labor", "drainage installation", "grading"],
+          "min_man_hours": 4
+        }
+      ]
+    },
+    "material_item_intelligence": {
+      "premium_benchmarks": [
+        {
+          "category": "Hardscape - Pavers",
+          "primary_spec": "Standard Interlocking Concrete Paver",
+          "uom": "SF",
+          "unit_cost": 18.50,
+          "waste_factor": 1.08,
+          "installation_depth_standard": "7 inch excavation, 4 inch base rock, 1 inch sand"
+        },
+        {
+          "category": "Hardscape - Decking",
+          "primary_spec": "Composite / High-End PT Pine",
+          "uom": "SF",
+          "unit_cost": 28.00,
+          "waste_factor": 1.10,
+          "subframe_spec": "Standard Pressure Treated (PT) Lumber"
+        },
+        {
+          "category": "Kitchen & Appliances",
+          "stone_veneer": "Cultured Stone / Standard Veneer",
+          "countertop_spec": "Granite / Grade A Quartz",
+          "appliance_buffer": 8500.00,
+          "keywords": ["BBQ Island", "Freestanding Bar", "under-cabinet storage"]
+        },
+        {
+          "category": "Lawn & Softscape",
+          "spec": "Residential Grade Synthetic Turf",
+          "pile_height": "1.5 inch",
+          "infill_type": "Standard Silica Sand",
+          "uom": "SF",
+          "unit_cost": 12.50
+        }
+      ]
+    },
+    "inference_logic": {
+      "conservative_defaults": {
+        "missing_location": "Suburban National Average",
+        "missing_soil_condition": "Assume standard soil with light grading required.",
+        "missing_access": "Assume 'Standard Access' with no specialized equipment rentals required."
+      },
+      "automatic_task_bundling": [
+        {
+          "trigger": "Planting",
+          "includes": ["Standard Planters Mix", "Standard Drip Irrigation"]
+        },
+        {
+          "trigger": "Hardscape",
+          "includes": ["Polymeric Joint Sand", "Standard Disposal Fees"]
+        },
+        {
+          "trigger": "Outdoor Features",
+          "includes": ["Standard Concrete Footings", "Low Voltage Transformer"]
+        }
+      ],
+      "pool_specific_logic": {
+        "decommissioning_estimate": 18500.00,
+        "method": "Standard partial demo and soil backfill."
+      }
+    },
+    "operational_safety": {
+      "mandatory_fees": [
+        { "item": "Portable Toilet Fee", "cost": 175.00, "note": "Monthly rate" },
+        { "item": "Dump Fees / Roll-off Container", "cost": 550.00, "note": "Standard 10-yard container" },
+        { "item": "Equipment Usage", "cost": 450.00, "note": "Daily tool/small machinery allowance" }
+      ],
+      "waste_policy": {
+        "lumber": 1.10,
+        "pavers": 1.08,
+        "turf": 1.05
+      }
+    }
+}

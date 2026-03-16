@@ -1,5 +1,7 @@
 package com.aether.app.estimate;
 
+import com.aether.app.project.ProjectService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,7 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,13 +47,26 @@ public class EstimateRestController {
 
     private final EstimateService estimateService;
     private final StorageService storageService;
+    private final ProjectService projectService;
+    private final TrainingContextService trainingContextService;
+    private final TenantAdaptiveAgentClient tenantAdaptiveAgentClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${aether.pubsub.estimate-topic:}")
     private String estimateTopic;
 
-    public EstimateRestController(EstimateService estimateService, StorageService storageService) {
+    public EstimateRestController(EstimateService estimateService,
+                                  StorageService storageService,
+                                  ProjectService projectService,
+                                  TrainingContextService trainingContextService,
+                                  TenantAdaptiveAgentClient tenantAdaptiveAgentClient,
+                                  ObjectMapper objectMapper) {
         this.estimateService = estimateService;
         this.storageService = storageService;
+        this.projectService = projectService;
+        this.trainingContextService = trainingContextService;
+        this.tenantAdaptiveAgentClient = tenantAdaptiveAgentClient;
+        this.objectMapper = objectMapper;
     }
 
     @Operation(
@@ -68,7 +82,7 @@ public class EstimateRestController {
                     5. **Return** an immediate acknowledgment — no need to wait for AI processing to finish.
 
                     > The AI agent will parse the PDF, fetch the live GraphQL schema, map every field to the correct \
-                    input types, and execute the required mutations (`createProject` → `createTask` → `createItem` / `createLabor`).
+                    input types, and execute the required mutations (`createProject` → `createTask` → `createOffer`).
                     """
     )
     @ApiResponses({
@@ -188,6 +202,66 @@ public class EstimateRestController {
                                                     .<Object>body(Map.of("detail", "Upload failed: " + ex.getMessage())));
                             });
                 });
+    }
+
+    @Operation(
+            summary = "Request agentic project pricing",
+            operationId = "price_project_api_v1_estimate_price_project_post",
+            description = """
+                    Triggers the Tenant-Adaptive agent to price a project using tenant and project training data.
+                    The app aggregates tenant-level (catalog + custom) and project-level training data,
+                    sends it to the AI, which enriches the project via GraphQL mutations.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pricing completed. Returns agent report and tool call log."),
+            @ApiResponse(responseCode = "400", description = "No training data configured. Add tenant or project training data first.",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(value = "{\"detail\":\"Configure tenant or project training data before requesting pricing.\"}"))),
+            @ApiResponse(responseCode = "404", description = "Project not found or access denied."),
+            @ApiResponse(responseCode = "503", description = "Tenant-Adaptive agent not configured or unavailable.")
+    })
+    @PostMapping(value = "/price-project", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<?>> priceProject(
+            @Parameter(description = "Tenant ID", required = true, example = "tenant-123")
+            @RequestParam(value = "tenant_id") String tenantId,
+            @Parameter(description = "Project ID to price", required = true, example = "proj-abc")
+            @RequestParam(value = "project_id") String projectId) {
+        return projectService.getProject(projectId, tenantId)
+                .flatMap(project -> {
+                    if (!tenantAdaptiveAgentClient.isConfigured()) {
+                        return Mono.just(ResponseEntity.<Object>status(HttpStatus.SERVICE_UNAVAILABLE)
+                                .body(Map.of("detail", "Tenant-Adaptive agent is not configured. Set aether.agent.tenant-adaptive-url.")));
+                    }
+                    return trainingContextService.getTrainingContextForProject(tenantId, projectId)
+                            .flatMap(trainingJson -> {
+                                if (trainingJson == null || trainingJson.isBlank() || "{}".equals(trainingJson.trim())) {
+                                    return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
+                                            .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
+                                }
+                                // Ensure we have meaningful content (not just empty arrays)
+                                String trimmed = trainingJson.trim();
+                                if ("{\"catalogEntries\":[],\"tenantCustomEntries\":[],\"projectCustomEntries\":[]}".equals(trimmed)) {
+                                    return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
+                                            .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
+                                }
+                                return tenantAdaptiveAgentClient.processPricing(trainingJson, tenantId, projectId)
+                                        .flatMap(agentResponse -> {
+                                            try {
+                                                Object parsed = objectMapper.readValue(agentResponse, Object.class);
+                                                return Mono.just(ResponseEntity.ok().<Object>body(parsed));
+                                            } catch (Exception e) {
+                                                log.warn("Could not parse agent response as JSON, returning raw: {}", e.getMessage());
+                                                return Mono.just(ResponseEntity.ok().<Object>body(Map.of("agent_report", agentResponse)));
+                                            }
+                                        })
+                                        .onErrorResume(ex -> Mono.just(
+                                                ResponseEntity.<Object>status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                                        .body(Map.of("detail", "Pricing failed: " + ex.getMessage()))));
+                            });
+                })
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("detail", "Project not found or access denied."))));
     }
 
     @Operation(

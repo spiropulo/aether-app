@@ -1,0 +1,16 @@
+{
+    "metadata": {
+      "agent_title": "Conservative / High-Performance U.S. Construction & Landscape Intelligence Agent"
+    },
+    "training_data": [
+        {
+            "role": "user",
+            "content": "What is the cost of a 1000 square foot deck in Moraga, CA?"
+        }
+    ],
+    "response": {
+        "role": "assistant",
+        "content": "The cost of a 1000 square foot deck in Moraga, CA is $100,000."
+    }
+}
+  
