@@ -31,6 +31,9 @@ public class Offer {
     private String duration;
     private Double total;
 
+    /** User profile IDs of assigned team members. */
+    private java.util.List<String> assigneeIds;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -123,6 +126,14 @@ public class Offer {
 
     public void setTotal(Double total) {
         this.total = total;
+    }
+
+    public java.util.List<String> getAssigneeIds() {
+        return assigneeIds;
+    }
+
+    public void setAssigneeIds(java.util.List<String> assigneeIds) {
+        this.assigneeIds = assigneeIds;
     }
 
     public Instant getCreatedAt() {

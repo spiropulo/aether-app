@@ -17,5 +17,18 @@ services:
     ports:
       - "8085:8085"
 
+  # Local SMTP server for development — captures all emails and provides web UI at http://localhost:8025
+  # Use with spring.mail.host=localhost, spring.mail.port=1025
+  # In production, configure SendGrid (smtp.sendgrid.net:587), Mailgun (smtp.mailgun.org:587), or similar.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
 volumes:
   fake-gcs-data:

@@ -49,6 +49,7 @@ public class OfferService {
         offer.setQuantity(input.getQuantity());
         offer.setUnitCost(input.getUnitCost());
         offer.setDuration(input.getDuration());
+        offer.setAssigneeIds(input.getAssigneeIds());
         offer.setTotal(computeTotal(input.getQuantity(), input.getUnitCost()));
         Instant now = Instant.now();
         offer.setCreatedAt(now);
@@ -77,6 +78,9 @@ public class OfferService {
                     }
                     if (input.getDuration() != null) {
                         existing.setDuration(input.getDuration());
+                    }
+                    if (input.getAssigneeIds() != null) {
+                        existing.setAssigneeIds(input.getAssigneeIds());
                     }
                     existing.setTotal(computeTotal(existing.getQuantity(), existing.getUnitCost()));
                     existing.setUpdatedAt(Instant.now());

@@ -1,5 +1,7 @@
 package com.aether.app.offer;
 
+import java.util.List;
+
 public class UpdateOfferInput {
 
     private String name;
@@ -8,6 +10,7 @@ public class UpdateOfferInput {
     private Double quantity;
     private Double unitCost;
     private String duration;
+    private List<String> assigneeIds;
 
     public String getName() {
         return name;
@@ -55,5 +58,13 @@ public class UpdateOfferInput {
 
     public void setDuration(String duration) {
         this.duration = duration;
+    }
+
+    public List<String> getAssigneeIds() {
+        return assigneeIds;
+    }
+
+    public void setAssigneeIds(List<String> assigneeIds) {
+        this.assigneeIds = assigneeIds;
     }
 }

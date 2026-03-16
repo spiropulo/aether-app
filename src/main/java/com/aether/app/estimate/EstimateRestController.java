@@ -1,6 +1,8 @@
 package com.aether.app.estimate;
 
 import com.aether.app.project.ProjectService;
+import com.aether.app.estimate.ProjectExportService;
+import com.aether.app.subscription.SubscriptionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,6 +50,8 @@ public class EstimateRestController {
     private final EstimateService estimateService;
     private final StorageService storageService;
     private final ProjectService projectService;
+    private final ProjectExportService projectExportService;
+    private final SubscriptionService subscriptionService;
     private final TrainingContextService trainingContextService;
     private final TenantAdaptiveAgentClient tenantAdaptiveAgentClient;
     private final ObjectMapper objectMapper;
@@ -58,12 +62,16 @@ public class EstimateRestController {
     public EstimateRestController(EstimateService estimateService,
                                   StorageService storageService,
                                   ProjectService projectService,
+                                  ProjectExportService projectExportService,
+                                  SubscriptionService subscriptionService,
                                   TrainingContextService trainingContextService,
                                   TenantAdaptiveAgentClient tenantAdaptiveAgentClient,
                                   ObjectMapper objectMapper) {
         this.estimateService = estimateService;
         this.storageService = storageService;
         this.projectService = projectService;
+        this.projectExportService = projectExportService;
+        this.subscriptionService = subscriptionService;
         this.trainingContextService = trainingContextService;
         this.tenantAdaptiveAgentClient = tenantAdaptiveAgentClient;
         this.objectMapper = objectMapper;
@@ -228,12 +236,17 @@ public class EstimateRestController {
             @Parameter(description = "Project ID to price", required = true, example = "proj-abc")
             @RequestParam(value = "project_id") String projectId) {
         return projectService.getProject(projectId, tenantId)
-                .flatMap(project -> {
-                    if (!tenantAdaptiveAgentClient.isConfigured()) {
-                        return Mono.just(ResponseEntity.<Object>status(HttpStatus.SERVICE_UNAVAILABLE)
-                                .body(Map.of("detail", "Tenant-Adaptive agent is not configured. Set aether.agent.tenant-adaptive-url.")));
-                    }
-                    return trainingContextService.getTrainingContextForProject(tenantId, projectId)
+                .flatMap(project -> subscriptionService.canUseAiPricing(tenantId)
+                        .flatMap(canUse -> {
+                            if (!Boolean.TRUE.equals(canUse)) {
+                                return Mono.just(ResponseEntity.<Object>status(HttpStatus.TOO_MANY_REQUESTS)
+                                        .body(Map.of("detail", "AI pricing limit reached for this billing period. Upgrade your plan or wait until the next cycle.")));
+                            }
+                            if (!tenantAdaptiveAgentClient.isConfigured()) {
+                                return Mono.just(ResponseEntity.<Object>status(HttpStatus.SERVICE_UNAVAILABLE)
+                                        .body(Map.of("detail", "Tenant-Adaptive agent is not configured. Set aether.agent.tenant-adaptive-url.")));
+                            }
+                            return trainingContextService.getTrainingContextForProject(tenantId, projectId)
                             .flatMap(trainingJson -> {
                                 if (trainingJson == null || trainingJson.isBlank() || "{}".equals(trainingJson.trim())) {
                                     return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
@@ -246,6 +259,8 @@ public class EstimateRestController {
                                             .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
                                 }
                                 return tenantAdaptiveAgentClient.processPricing(trainingJson, tenantId, projectId)
+                                        .flatMap(agentResponse -> subscriptionService.recordUsage(tenantId)
+                                                .thenReturn(agentResponse))
                                         .flatMap(agentResponse -> {
                                             try {
                                                 Object parsed = objectMapper.readValue(agentResponse, Object.class);
@@ -261,7 +276,36 @@ public class EstimateRestController {
                             });
                 })
                 .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("detail", "Project not found or access denied."))));
+                        .body(Map.of("detail", "Project not found or access denied.")))));
+    }
+
+    @Operation(
+            summary = "Export project as PDF",
+            operationId = "export_project_api_v1_estimate_projects_id_export_get",
+            description = "Generates a professionally formatted PDF of the project (name, description, tasks, offers, totals). " +
+                    "Available when the project is Fully Priced (all offers have unit cost) or whenever the tenant manually requests it."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF file."),
+            @ApiResponse(responseCode = "404", description = "Project not found or access denied.")
+    })
+    @GetMapping(value = "/projects/{projectId}/export", produces = MediaType.APPLICATION_PDF_VALUE)
+    public Mono<ResponseEntity<Object>> exportProject(
+            @Parameter(description = "Project ID", required = true) @PathVariable String projectId,
+            @Parameter(description = "Tenant ID", required = true, example = "tenant-123")
+            @RequestParam(value = "tenant_id") String tenantId) {
+        return projectExportService.generatePdf(projectId, tenantId)
+                .map(bytes -> {
+                    String fileName = "project-estimate.pdf";
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_PDF);
+                    headers.setContentDispositionFormData("attachment", fileName);
+                    return ResponseEntity.ok()
+                            .headers(headers)
+                            .<Object>body(bytes);
+                })
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .<Object>body(Map.of("detail", "Project not found or access denied."))));
     }
 
     @Operation(

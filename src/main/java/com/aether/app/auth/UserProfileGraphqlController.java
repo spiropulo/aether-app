@@ -42,8 +42,9 @@ public class UserProfileGraphqlController {
     @MutationMapping
     public Mono<UserProfile> updateProfile(@Argument String id,
                                             @Argument String tenantId,
+                                            @Argument String callerId,
                                             @Argument UpdateProfileInput input) {
-        return userProfileService.updateProfile(id, tenantId, input);
+        return userProfileService.updateProfile(id, tenantId, callerId, input);
     }
 
     @MutationMapping

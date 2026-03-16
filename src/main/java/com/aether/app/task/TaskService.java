@@ -51,6 +51,10 @@ public class TaskService {
                     task.setProjectId(input.getProjectId());
                     task.setName(name);
                     task.setDescription(input.getDescription());
+                    task.setAssigneeIds(input.getAssigneeIds());
+                    task.setStartDate(input.getStartDate());
+                    task.setEndDate(input.getEndDate());
+                    task.setCalendarColor(input.getCalendarColor());
                     Instant now = Instant.now();
                     task.setCreatedAt(now);
                     task.setUpdatedAt(now);
@@ -85,6 +89,18 @@ public class TaskService {
         }
         if (input.getDescription() != null) {
             existing.setDescription(input.getDescription());
+        }
+        if (input.getAssigneeIds() != null) {
+            existing.setAssigneeIds(input.getAssigneeIds());
+        }
+        if (input.getStartDate() != null) {
+            existing.setStartDate(input.getStartDate());
+        }
+        if (input.getEndDate() != null) {
+            existing.setEndDate(input.getEndDate());
+        }
+        if (input.getCalendarColor() != null) {
+            existing.setCalendarColor(input.getCalendarColor());
         }
         existing.setUpdatedAt(Instant.now());
     }

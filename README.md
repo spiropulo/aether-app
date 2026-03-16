@@ -37,8 +37,9 @@ docker compose up -d
 |-----------|------|--------------------------|
 | fake-gcs  | 9195 | fsouza/fake-gcs-server   |
 | Pub/Sub   | 8085 | google-cloud-cli:emulators |
+| mailpit   | 1025 (SMTP), 8025 (Web UI) | axllent/mailpit |
 
-The bucket (`aether-estimates`) is created automatically on app startup. **fake-gcs-server** implements the GCS JSON API (required for the Java client). The Firebase Storage emulator uses a different protocol and is not compatible.
+The bucket (`aether-estimates`) is created automatically on app startup. **Mailpit** captures all outgoing emails for local SMTP testing; view them at http://localhost:8025. **fake-gcs-server** implements the GCS JSON API (required for the Java client). The Firebase Storage emulator uses a different protocol and is not compatible.
 
 > **Firestore**: Run via `firebase emulators:start --only firestore` (default port 8075) or your Firebase config.
 
@@ -79,6 +80,19 @@ Key properties:
   - `aether.pubsub.estimate-topic` – from `AETHER_PUBSUB_ESTIMATE_TOPIC` (default: `estimate-events`)
   - `aether.pubsub.estimate-subscription` – from `AETHER_PUBSUB_ESTIMATE_SUBSCRIPTION` (default: `estimate-events-sub`). Listener pulls from this and forwards PDFs to the Schema Mapper Agent.
   - `aether.agent.process-url` – from `AETHER_AGENT_PROCESS_URL` (default: `http://localhost:8055/api/v1/schema-mapper/process`). The Aether AI Schema Mapper agent endpoint for PDF processing.
+
+- Email (local profile):
+  - `aether.mail.enabled` – from `AETHER_MAIL_ENABLED` (default: `true` for local). When false, `EmailService` is a no-op.
+  - `spring.mail.host` – from `MAIL_HOST` (default: `localhost` for Mailpit).
+  - `spring.mail.port` – from `MAIL_PORT` (default: `1025` for Mailpit).
+  - `aether.mail.from` – from `AETHER_MAIL_FROM` (default: `dev@localhost`).
+  - Start Mailpit: `docker compose up -d mailpit`. View captured emails at http://localhost:8025.
+- Email (production): Use a commercial SMTP provider (SendGrid, Mailgun, etc.). Set:
+  - `AETHER_MAIL_ENABLED=true`
+  - `MAIL_HOST` (e.g. `smtp.sendgrid.net` or `smtp.mailgun.org`)
+  - `MAIL_PORT` (typically `587`)
+  - `MAIL_USERNAME` and `MAIL_PASSWORD` (API key or SMTP credentials)
+  - `AETHER_MAIL_FROM` (verified sender address)
 
   Create topic and subscription in the Pub/Sub emulator:
   ```bash

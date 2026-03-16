@@ -175,37 +175,45 @@ public class UserProfileService {
                                 }));
     }
 
-    public Mono<UserProfile> updateProfile(String id, String tenantId, UpdateProfileInput input) {
-        return userProfileRepository.findByIdAndTenantId(id, tenantId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("User profile not found.")))
-                .flatMap(existing -> {
-                    if (input.getEmail() != null) {
-                        existing.setEmail(input.getEmail());
-                    }
-                    if (input.getFirstName() != null) {
-                        existing.setFirstName(input.getFirstName());
-                    }
-                    if (input.getLastName() != null) {
-                        existing.setLastName(input.getLastName());
-                    }
-                    if (input.getDisplayName() != null) {
-                        existing.setDisplayName(input.getDisplayName());
-                    }
-                    if (input.getPhoneNumber() != null) {
-                        existing.setPhoneNumber(input.getPhoneNumber());
-                    }
-                    if (input.getAvatarUrl() != null) {
-                        existing.setAvatarUrl(input.getAvatarUrl());
-                    }
-                    if (input.getRole() != null) {
-                        existing.setRole(input.getRole());
-                    }
-                    if (input.getStatus() != null) {
-                        existing.setStatus(input.getStatus());
-                    }
-                    existing.setUpdatedAt(Instant.now());
-                    return userProfileRepository.save(existing);
-                });
+    public Mono<UserProfile> updateProfile(String id, String tenantId, String callerId, UpdateProfileInput input) {
+        return userProfileRepository.findByIdAndTenantId(callerId, tenantId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Caller profile not found.")))
+                .flatMap(caller -> userProfileRepository.findByIdAndTenantId(id, tenantId)
+                        .switchIfEmpty(Mono.error(new IllegalArgumentException("User profile not found.")))
+                        .flatMap(existing -> {
+                            boolean isEditingSelf = callerId.equals(id);
+                            boolean callerIsAdmin = caller.getRole() == UserRole.ADMIN;
+                            if (!isEditingSelf && !callerIsAdmin) {
+                                return Mono.error(new IllegalArgumentException("Only admins can edit other members' profiles."));
+                            }
+                            boolean canUpdateRoleStatus = callerIsAdmin;
+                            if (input.getEmail() != null) {
+                                existing.setEmail(input.getEmail());
+                            }
+                            if (input.getFirstName() != null) {
+                                existing.setFirstName(input.getFirstName());
+                            }
+                            if (input.getLastName() != null) {
+                                existing.setLastName(input.getLastName());
+                            }
+                            if (input.getDisplayName() != null) {
+                                existing.setDisplayName(input.getDisplayName());
+                            }
+                            if (input.getPhoneNumber() != null) {
+                                existing.setPhoneNumber(input.getPhoneNumber());
+                            }
+                            if (input.getAvatarUrl() != null) {
+                                existing.setAvatarUrl(input.getAvatarUrl());
+                            }
+                            if (canUpdateRoleStatus && input.getRole() != null) {
+                                existing.setRole(input.getRole());
+                            }
+                            if (canUpdateRoleStatus && input.getStatus() != null) {
+                                existing.setStatus(input.getStatus());
+                            }
+                            existing.setUpdatedAt(Instant.now());
+                            return userProfileRepository.save(existing);
+                        }));
     }
 
     public Mono<Boolean> changePassword(String id, String tenantId, ChangePasswordInput input) {

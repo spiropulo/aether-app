@@ -23,7 +23,22 @@ spring:
       storage:
         enabled: true
 
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:true}
+
 aether:
+  mail:
+    enabled: ${AETHER_MAIL_ENABLED:false}
+    from: ${AETHER_MAIL_FROM:}
   agent:
     process-url: ${AETHER_AGENT_PROCESS_URL:}
     tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:}

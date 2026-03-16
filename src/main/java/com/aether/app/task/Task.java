@@ -23,6 +23,18 @@ public class Task {
 
     private String description;
 
+    /** User profile IDs of assigned team members. */
+    private java.util.List<String> assigneeIds;
+
+    /** Start date for calendar (ISO date string). */
+    private String startDate;
+
+    /** End date for calendar (ISO date string). */
+    private String endDate;
+
+    /** Calendar display color (hex or preset name). */
+    private String calendarColor;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -67,6 +79,38 @@ public class Task {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public java.util.List<String> getAssigneeIds() {
+        return assigneeIds;
+    }
+
+    public void setAssigneeIds(java.util.List<String> assigneeIds) {
+        this.assigneeIds = assigneeIds;
+    }
+
+    public String getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(String startDate) {
+        this.startDate = startDate;
+    }
+
+    public String getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(String endDate) {
+        this.endDate = endDate;
+    }
+
+    public String getCalendarColor() {
+        return calendarColor;
+    }
+
+    public void setCalendarColor(String calendarColor) {
+        this.calendarColor = calendarColor;
     }
 
     public Instant getCreatedAt() {

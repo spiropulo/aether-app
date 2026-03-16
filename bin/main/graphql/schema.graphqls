@@ -95,6 +95,14 @@ type Task {
   name: String!
   """Short summary of the task name."""
   description: String
+  """User profile IDs of assigned team members."""
+  assigneeIds: [String!]
+  """Start date for calendar display (ISO date string)."""
+  startDate: String
+  """End date for calendar display (ISO date string)."""
+  endDate: String
+  """Calendar display color (e.g. hex #3B82F6 or preset name)."""
+  calendarColor: String
   createdAt: String
   updatedAt: String
 }
@@ -112,11 +120,19 @@ input CreateTaskInput {
   projectId: String!
   name: String!
   description: String
+  assigneeIds: [String!]
+  startDate: String
+  endDate: String
+  calendarColor: String
 }
 
 input UpdateTaskInput {
   name: String
   description: String
+  assigneeIds: [String!]
+  startDate: String
+  endDate: String
+  calendarColor: String
 }
 
 # ─── Offer ────────────────────────────────────────────────────────────────────
@@ -139,6 +155,8 @@ type Offer {
   unitCost: Float
   duration: String
   total: Float
+  """User profile IDs of assigned team members."""
+  assigneeIds: [String!]
   createdAt: String
   updatedAt: String
 }
@@ -161,6 +179,7 @@ input CreateOfferInput {
   quantity: Float
   unitCost: Float
   duration: String
+  assigneeIds: [String!]
 }
 
 input UpdateOfferInput {
@@ -170,6 +189,7 @@ input UpdateOfferInput {
   quantity: Float
   unitCost: Float
   duration: String
+  assigneeIds: [String!]
 }
 
 # ─── Auth / User Profile ─────────────────────────────────────────────────────
@@ -357,6 +377,34 @@ input UpdateTrainingDataInput {
   description: String
 }
 
+# ─── Project Email (history & send) ──────────────────────────────────────────
+
+"""Record of an email sent for a project. Stored for history."""
+type ProjectEmail {
+  id: ID!
+  tenantId: String!
+  projectId: String!
+  """When set, email was sent to task assignees only."""
+  taskId: String
+  """User profile ID of the sender."""
+  senderId: String!
+  toEmails: [String!]!
+  subject: String!
+  body: String!
+  sentAt: String!
+}
+
+input SendProjectEmailInput {
+  tenantId: String!
+  projectId: String!
+  """When set, send to task assignees only. Otherwise project assignees."""
+  taskId: String
+  senderId: String!
+  toEmails: [String!]!
+  subject: String!
+  body: String
+}
+
 # ─── Queries ─────────────────────────────────────────────────────────────────
 
 type Query {
@@ -405,6 +453,10 @@ type Query {
   projectTrainingData(tenantId: String!, projectId: String!, page: PageInput, search: String): TrainingDataPage!
   """Fetch a single training data entry by ID."""
   trainingDataEntry(id: ID!, tenantId: String!): TrainingData
+
+  # Project Email History
+  """All emails sent for a project, newest first."""
+  projectEmails(projectId: String!, tenantId: String!): [ProjectEmail!]!
 }
 
 # ─── Mutations ───────────────────────────────────────────────────────────────
@@ -435,8 +487,8 @@ type Mutation {
   register(input: RegisterInput!): AuthPayload!
   """Authenticate with username and password; returns a JWT token on success."""
   login(input: LoginInput!): AuthPayload!
-  """Update mutable profile fields (email, name, avatar, role, status)."""
-  updateProfile(id: ID!, tenantId: String!, input: UpdateProfileInput!): UserProfile!
+  """Update mutable profile fields. Admin can edit all fields of any member. Non-admin can only edit own profile (not role/status)."""
+  updateProfile(id: ID!, tenantId: String!, callerId: String!, input: UpdateProfileInput!): UserProfile!
   """Verify the current password then store a new BCrypt hash."""
   changePassword(id: ID!, tenantId: String!, input: ChangePasswordInput!): Boolean!
   """Add a new member to an organization. Organization must exist. Returns the created user profile (member logs in separately)."""
@@ -459,4 +511,8 @@ type Mutation {
   createProjectTrainingData(input: CreateProjectTrainingDataInput!): TrainingData!
   updateTrainingData(id: ID!, tenantId: String!, input: UpdateTrainingDataInput!): TrainingData!
   deleteTrainingData(id: ID!, tenantId: String!): Boolean!
+
+  # Project Email
+  """Send an email to project or task assignees. Stored in history."""
+  sendProjectEmail(input: SendProjectEmailInput!): ProjectEmail!
 }

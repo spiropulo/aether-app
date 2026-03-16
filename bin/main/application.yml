@@ -49,3 +49,8 @@ aether:
     bucket-name: ${GCS_BUCKET_NAME:aether-estimates}
     # Folder prefix inside the bucket
     estimate-folder: ${GCS_ESTIMATE_FOLDER:estimates}
+  mail:
+    # When false or unset, EmailService is a no-op. Set to true and configure spring.mail.* for sending.
+    enabled: ${AETHER_MAIL_ENABLED:false}
+    # From address for outgoing emails. Defaults to spring.mail.username or noreply@localhost.
+    from: ${AETHER_MAIL_FROM:}
