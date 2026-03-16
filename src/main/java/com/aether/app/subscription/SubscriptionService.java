@@ -8,6 +8,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -116,7 +117,23 @@ public class SubscriptionService {
     }
 
     /**
+     * Resume a cancelled subscription. Clears cancelledAt so the plan continues after the current cycle.
+     * Only applies when the subscription has cancelledAt set and is still within the billing cycle.
+     */
+    public Mono<TenantSubscription> resume(String tenantId) {
+        return subscriptionRepository.findById(tenantId)
+                .filter(sub -> sub.getCancelledAt() != null)
+                .flatMap(sub -> {
+                    sub.setCancelledAt(null);
+                    sub.setUpdatedAt(Instant.now());
+                    return subscriptionRepository.save(sub);
+                })
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("No cancelled subscription to resume")));
+    }
+
+    /**
      * Cancel subscription. Retains access until end of billing cycle.
+     * If no TenantSubscription exists (plan came from Tenant table), create one with FREE to record cancellation.
      */
     public Mono<TenantSubscription> cancel(String tenantId) {
         return subscriptionRepository.findById(tenantId)
@@ -124,7 +141,17 @@ public class SubscriptionService {
                     sub.setCancelledAt(Instant.now());
                     sub.setUpdatedAt(Instant.now());
                     return subscriptionRepository.save(sub);
-                });
+                })
+                .switchIfEmpty(Mono.defer(() -> tenantRepository.findAllByTenantId(tenantId).next()
+                        .flatMap(tenant -> {
+                            TenantSubscription sub = new TenantSubscription();
+                            sub.setId(tenantId);
+                            sub.setTenantId(tenantId);
+                            sub.setPlan(SubscriptionPlan.FREE);
+                            sub.setCancelledAt(Instant.now());
+                            sub.setUpdatedAt(Instant.now());
+                            return subscriptionRepository.save(sub);
+                        })));
     }
 
     /**
@@ -143,32 +170,61 @@ public class SubscriptionService {
     }
 
     private static List<Instant> calendarMonthBounds() {
-        Instant now = Instant.now();
-        Instant start = now.atZone(ZoneOffset.UTC).withDayOfMonth(1).toInstant().truncatedTo(ChronoUnit.DAYS);
-        Instant end = start.plus(1, ChronoUnit.MONTHS);
-        return List.of(start, end);
+        ZonedDateTime now = Instant.now().atZone(ZoneOffset.UTC);
+        ZonedDateTime start = now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS);
+        ZonedDateTime end = start.plusMonths(1);
+        return List.of(start.toInstant(), end.toInstant());
     }
 
     /**
-     * Get subscription status for UI (plan, used, limit, cycle end).
+     * Get subscription status for UI (plan, used, limit, cycle end, billing reminder, payment method).
      */
     public Mono<SubscriptionStatus> getStatus(String tenantId) {
         return getEffectivePlan(tenantId)
                 .zipWith(getUsageCount(tenantId))
                 .zipWith(getBillingCycleBounds(tenantId))
+                .zipWith(subscriptionRepository.findById(tenantId).defaultIfEmpty(new TenantSubscription()))
                 .map(tuple -> {
-                    SubscriptionPlan plan = tuple.getT1().getT1();
-                    int used = tuple.getT1().getT2();
-                    List<Instant> bounds = tuple.getT2();
+                    SubscriptionPlan plan = tuple.getT1().getT1().getT1();
+                    int used = tuple.getT1().getT1().getT2();
+                    List<Instant> bounds = tuple.getT1().getT2();
+                    TenantSubscription sub = tuple.getT2();
                     return new SubscriptionStatus(
                             plan.name(),
                             used,
                             plan.isUnlimited() ? -1 : plan.getMonthlyLimit(),
                             bounds.get(1),
-                            plan.getPriceUsd()
+                            plan.getPriceUsd(),
+                            sub.getBillingReminderOptOut(),
+                            sub.getPaymentMethodLast4(),
+                            sub.getPaymentMethodBrand(),
+                            sub.getCancelledAt()
                     );
                 });
     }
 
-    public record SubscriptionStatus(String plan, int used, int limit, Instant cycleEnd, int priceUsd) {}
+    public record SubscriptionStatus(String plan, int used, int limit, Instant cycleEnd, int priceUsd,
+                                      Boolean billingReminderOptOut, String paymentMethodLast4, String paymentMethodBrand,
+                                      Instant cancelledAt) {}
+
+    /**
+     * Update billing reminder email preference. Default is false (reminders ON).
+     */
+    public Mono<Void> setBillingReminderOptOut(String tenantId, boolean optOut) {
+        return subscriptionRepository.findById(tenantId)
+                .flatMap(sub -> {
+                    sub.setBillingReminderOptOut(optOut);
+                    sub.setUpdatedAt(Instant.now());
+                    return subscriptionRepository.save(sub).then();
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    TenantSubscription sub = new TenantSubscription();
+                    sub.setId(tenantId);
+                    sub.setTenantId(tenantId);
+                    sub.setPlan(SubscriptionPlan.FREE);
+                    sub.setBillingReminderOptOut(optOut);
+                    sub.setUpdatedAt(Instant.now());
+                    return subscriptionRepository.save(sub).then();
+                }));
+    }
 }

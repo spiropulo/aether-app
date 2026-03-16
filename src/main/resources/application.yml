@@ -54,3 +54,14 @@ aether:
     enabled: ${AETHER_MAIL_ENABLED:false}
     # From address for outgoing emails. Defaults to spring.mail.username or noreply@localhost.
     from: ${AETHER_MAIL_FROM:}
+  stripe:
+    # Secret key. Set STRIPE_SECRET_KEY env var, OR replace the line below with a literal: secret-key: sk_test_51H...
+    secret-key: ${STRIPE_SECRET_KEY:}
+    # Publishable key. Set STRIPE_PUBLISHABLE_KEY env var, OR use literal: publishable-key: pk_test_51H...
+    publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
+  billing-reminder:
+    # Cron for sending "5 days before billing" emails. Default: 9 AM daily.
+    cron: ${AETHER_BILLING_REMINDER_CRON:0 0 9 * * *}
+  payment-method-expiration:
+    # Cron for sending "15 days before default payment method expires" emails to Admins. Default: 10 AM daily.
+    cron: ${AETHER_PAYMENT_METHOD_EXPIRATION_CRON:0 0 10 * * *}

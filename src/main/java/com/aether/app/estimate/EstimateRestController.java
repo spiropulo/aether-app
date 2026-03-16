@@ -1,6 +1,7 @@
 package com.aether.app.estimate;
 
 import com.aether.app.project.ProjectService;
+import com.aether.app.project.UpdateProjectInput;
 import com.aether.app.estimate.ProjectExportService;
 import com.aether.app.subscription.SubscriptionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -236,47 +237,62 @@ public class EstimateRestController {
             @Parameter(description = "Project ID to price", required = true, example = "proj-abc")
             @RequestParam(value = "project_id") String projectId) {
         return projectService.getProject(projectId, tenantId)
-                .flatMap(project -> subscriptionService.canUseAiPricing(tenantId)
-                        .flatMap(canUse -> {
-                            if (!Boolean.TRUE.equals(canUse)) {
-                                return Mono.just(ResponseEntity.<Object>status(HttpStatus.TOO_MANY_REQUESTS)
-                                        .body(Map.of("detail", "AI pricing limit reached for this billing period. Upgrade your plan or wait until the next cycle.")));
-                            }
-                            if (!tenantAdaptiveAgentClient.isConfigured()) {
-                                return Mono.just(ResponseEntity.<Object>status(HttpStatus.SERVICE_UNAVAILABLE)
-                                        .body(Map.of("detail", "Tenant-Adaptive agent is not configured. Set aether.agent.tenant-adaptive-url.")));
-                            }
-                            return trainingContextService.getTrainingContextForProject(tenantId, projectId)
-                            .flatMap(trainingJson -> {
-                                if (trainingJson == null || trainingJson.isBlank() || "{}".equals(trainingJson.trim())) {
-                                    return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
-                                            .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
+                .flatMap(project -> {
+                    // Require project address for location-based pricing
+                    boolean hasAddress = (project.getAddressLine1() != null && !project.getAddressLine1().isBlank())
+                            || (project.getCity() != null && !project.getCity().isBlank()
+                                    && project.getCountry() != null && !project.getCountry().isBlank());
+                    if (!hasAddress) {
+                        return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
+                                .body(Map.of("detail", "Set the project address before requesting pricing. Edit the project and add at least street address or city + country.")));
+                    }
+                    return subscriptionService.canUseAiPricing(tenantId)
+                            .flatMap(canUse -> {
+                                if (!Boolean.TRUE.equals(canUse)) {
+                                    return Mono.just(ResponseEntity.<Object>status(HttpStatus.TOO_MANY_REQUESTS)
+                                            .body(Map.of("detail", "AI pricing limit reached for this billing period. Upgrade your plan or wait until the next cycle.")));
                                 }
-                                // Ensure we have meaningful content (not just empty arrays)
-                                String trimmed = trainingJson.trim();
-                                if ("{\"catalogEntries\":[],\"tenantCustomEntries\":[],\"projectCustomEntries\":[]}".equals(trimmed)) {
-                                    return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
-                                            .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
+                                if (!tenantAdaptiveAgentClient.isConfigured()) {
+                                    return Mono.just(ResponseEntity.<Object>status(HttpStatus.SERVICE_UNAVAILABLE)
+                                            .body(Map.of("detail", "Tenant-Adaptive agent is not configured. Set aether.agent.tenant-adaptive-url.")));
                                 }
-                                return tenantAdaptiveAgentClient.processPricing(trainingJson, tenantId, projectId)
-                                        .flatMap(agentResponse -> subscriptionService.recordUsage(tenantId)
-                                                .thenReturn(agentResponse))
-                                        .flatMap(agentResponse -> {
-                                            try {
-                                                Object parsed = objectMapper.readValue(agentResponse, Object.class);
-                                                return Mono.just(ResponseEntity.ok().<Object>body(parsed));
-                                            } catch (Exception e) {
-                                                log.warn("Could not parse agent response as JSON, returning raw: {}", e.getMessage());
-                                                return Mono.just(ResponseEntity.ok().<Object>body(Map.of("agent_report", agentResponse)));
+                                return trainingContextService.getTrainingContextForProject(tenantId, projectId)
+                                        .flatMap(trainingJson -> {
+                                            if (trainingJson == null || trainingJson.isBlank() || "{}".equals(trainingJson.trim())) {
+                                                return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
+                                                        .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
                                             }
-                                        })
-                                        .onErrorResume(ex -> Mono.just(
-                                                ResponseEntity.<Object>status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                                        .body(Map.of("detail", "Pricing failed: " + ex.getMessage()))));
+                                            String trimmed = trainingJson.trim();
+                                            if ("{\"catalogEntries\":[],\"tenantCustomEntries\":[],\"projectCustomEntries\":[]}".equals(trimmed)) {
+                                                return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
+                                                        .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
+                                            }
+                                            String previousStatus = project.getStatus();
+                                            UpdateProjectInput pricingInput = new UpdateProjectInput();
+                                            pricingInput.setStatus("PRICING");
+                                            UpdateProjectInput restoreInput = new UpdateProjectInput();
+                                            restoreInput.setStatus(previousStatus != null && !previousStatus.isBlank() ? previousStatus : "Active");
+                                            return projectService.updateProject(projectId, tenantId, pricingInput)
+                                                    .flatMap(updated -> tenantAdaptiveAgentClient.processPricing(trainingJson, tenantId, projectId)
+                                                            .flatMap(agentResponse -> subscriptionService.recordUsage(tenantId)
+                                                                    .thenReturn(agentResponse))
+                                                            .flatMap(agentResponse -> {
+                                                                try {
+                                                                    Object parsed = objectMapper.readValue(agentResponse, Object.class);
+                                                                    return Mono.just(ResponseEntity.ok().<Object>body(parsed));
+                                                                } catch (Exception e) {
+                                                                    log.warn("Could not parse agent response as JSON, returning raw: {}", e.getMessage());
+                                                                    return Mono.just(ResponseEntity.ok().<Object>body(Map.of("agent_report", agentResponse)));
+                                                                }
+                                                            })
+                                                            .doFinally(signal -> projectService.updateProject(projectId, tenantId, restoreInput).subscribe())
+                                                            .onErrorResume(ex -> Mono.just(ResponseEntity.<Object>status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                                                    .body(Map.of("detail", "Pricing failed: " + ex.getMessage())))));
+                                        });
                             });
                 })
                 .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("detail", "Project not found or access denied.")))));
+                        .body(Map.of("detail", "Project not found or access denied."))));
     }
 
     @Operation(

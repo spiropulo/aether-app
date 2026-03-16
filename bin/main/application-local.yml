@@ -39,6 +39,12 @@ spring:
             enable: ${MAIL_SMTP_STARTTLS:false}
 
 aether:
+  stripe:
+    # Stripe keys: set env vars STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY, OR use literal values below.
+    # For literal values, replace the entire line (e.g. secret-key: sk_test_51H...your_key from https://dashboard.stripe.com/test/apikeys)
+    # Test card: 4242 4242 4242 4242
+    secret-key: ${STRIPE_SECRET_KEY:}
+    publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
   mail:
     enabled: ${AETHER_MAIL_ENABLED:true}
     from: ${AETHER_MAIL_FROM:dev@localhost}

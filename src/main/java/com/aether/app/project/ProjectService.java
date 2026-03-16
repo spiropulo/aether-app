@@ -43,6 +43,12 @@ public class ProjectService {
         project.setEndDate(input.getEndDate());
         project.setStatus(input.getStatus());
         project.setSourcePdfUploadId(input.getSourcePdfUploadId());
+        project.setAddressLine1(input.getAddressLine1());
+        project.setAddressLine2(input.getAddressLine2());
+        project.setCity(input.getCity());
+        project.setState(input.getState());
+        project.setPostalCode(input.getPostalCode());
+        project.setCountry(input.getCountry());
         Instant now = Instant.now();
         project.setCreatedAt(now);
         project.setUpdatedAt(now);
@@ -67,6 +73,24 @@ public class ProjectService {
                     }
                     if (input.getStatus() != null) {
                         existing.setStatus(input.getStatus());
+                    }
+                    if (input.getAddressLine1() != null) {
+                        existing.setAddressLine1(input.getAddressLine1());
+                    }
+                    if (input.getAddressLine2() != null) {
+                        existing.setAddressLine2(input.getAddressLine2());
+                    }
+                    if (input.getCity() != null) {
+                        existing.setCity(input.getCity());
+                    }
+                    if (input.getState() != null) {
+                        existing.setState(input.getState());
+                    }
+                    if (input.getPostalCode() != null) {
+                        existing.setPostalCode(input.getPostalCode());
+                    }
+                    if (input.getCountry() != null) {
+                        existing.setCountry(input.getCountry());
                     }
                     existing.setUpdatedAt(Instant.now());
                     return projectRepository.save(existing);

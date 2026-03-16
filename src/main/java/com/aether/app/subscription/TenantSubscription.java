@@ -29,6 +29,21 @@ public class TenantSubscription {
     /** When user cancelled; retains access until billingCycleEnd. */
     private Instant cancelledAt;
 
+    /** Stripe customer ID for payment. */
+    private String stripeCustomerId;
+
+    /** Last 4 digits of card for display (e.g. "4242"). */
+    private String paymentMethodLast4;
+
+    /** Card brand for display (e.g. "visa"). */
+    private String paymentMethodBrand;
+
+    /** Opt out of billing reminder email (5 days before). Default false = reminders ON. */
+    private Boolean billingReminderOptOut;
+
+    /** When we last sent payment method expiration warning (avoid spam). */
+    private Instant paymentMethodExpirationWarningSentAt;
+
     private Instant updatedAt;
 
     public String getId() {
@@ -77,6 +92,46 @@ public class TenantSubscription {
 
     public void setCancelledAt(Instant cancelledAt) {
         this.cancelledAt = cancelledAt;
+    }
+
+    public String getStripeCustomerId() {
+        return stripeCustomerId;
+    }
+
+    public void setStripeCustomerId(String stripeCustomerId) {
+        this.stripeCustomerId = stripeCustomerId;
+    }
+
+    public String getPaymentMethodLast4() {
+        return paymentMethodLast4;
+    }
+
+    public void setPaymentMethodLast4(String paymentMethodLast4) {
+        this.paymentMethodLast4 = paymentMethodLast4;
+    }
+
+    public String getPaymentMethodBrand() {
+        return paymentMethodBrand;
+    }
+
+    public void setPaymentMethodBrand(String paymentMethodBrand) {
+        this.paymentMethodBrand = paymentMethodBrand;
+    }
+
+    public Boolean getBillingReminderOptOut() {
+        return billingReminderOptOut;
+    }
+
+    public void setBillingReminderOptOut(Boolean billingReminderOptOut) {
+        this.billingReminderOptOut = billingReminderOptOut;
+    }
+
+    public Instant getPaymentMethodExpirationWarningSentAt() {
+        return paymentMethodExpirationWarningSentAt;
+    }
+
+    public void setPaymentMethodExpirationWarningSentAt(Instant paymentMethodExpirationWarningSentAt) {
+        this.paymentMethodExpirationWarningSentAt = paymentMethodExpirationWarningSentAt;
     }
 
     public Instant getUpdatedAt() {

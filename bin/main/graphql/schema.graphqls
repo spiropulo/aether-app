@@ -53,6 +53,13 @@ type Project {
   status: String
   """ID of the PDF upload record if this project was created from a PDF estimate."""
   sourcePdfUploadId: String
+  """Project address for location-based pricing (Agentic Agents)."""
+  addressLine1: String
+  addressLine2: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
   createdAt: String
   updatedAt: String
 }
@@ -75,6 +82,13 @@ input CreateProjectInput {
   status: String
   """PDF upload record ID if this project is being created from a PDF estimate."""
   sourcePdfUploadId: String
+  """Project address for location-based pricing (Agentic Agents)."""
+  addressLine1: String
+  addressLine2: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
 }
 
 input UpdateProjectInput {
@@ -84,6 +98,13 @@ input UpdateProjectInput {
   endDate: String
   """Status. Use suggestedProjectStatuses for common options, or any custom string."""
   status: String
+  """Project address for location-based pricing (Agentic Agents)."""
+  addressLine1: String
+  addressLine2: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
 }
 
 # ─── Task ────────────────────────────────────────────────────────────────────

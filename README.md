@@ -87,6 +87,12 @@ Key properties:
   - `spring.mail.port` – from `MAIL_PORT` (default: `1025` for Mailpit).
   - `aether.mail.from` – from `AETHER_MAIL_FROM` (default: `dev@localhost`).
   - Start Mailpit: `docker compose up -d mailpit`. View captured emails at http://localhost:8025.
+- Stripe (subscription payments):
+  - `STRIPE_SECRET_KEY` – from [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys). Use `sk_test_*` for dev.
+  - `STRIPE_PUBLISHABLE_KEY` – use `pk_test_*` for dev.
+  - **Dev / fake card**: In test mode, use card `4242 4242 4242 4242`, any future expiry, any CVC.
+  - When Stripe is not configured, upgrades fall back to direct subscribe (no payment).
+  - **Payment method expiration**: When the default payment method is within 15 days of expiring, Admins receive an email. Enable [Customer Portal](https://dashboard.stripe.com/settings/billing/portal) in Stripe for payment method updates.
 - Email (production): Use a commercial SMTP provider (SendGrid, Mailgun, etc.). Set:
   - `AETHER_MAIL_ENABLED=true`
   - `MAIL_HOST` (e.g. `smtp.sendgrid.net` or `smtp.mailgun.org`)

@@ -39,6 +39,9 @@ spring:
             enable: ${MAIL_SMTP_STARTTLS:false}
 
 aether:
+  # Stripe keys: defined in application.yml. For literal values, edit application.yml and replace
+  # secret-key: ${STRIPE_SECRET_KEY:} with secret-key: sk_test_51H... (no ${}). application-local.yml
+  # no longer overrides stripe, so application.yml values are used.
   mail:
     enabled: ${AETHER_MAIL_ENABLED:true}
     from: ${AETHER_MAIL_FROM:dev@localhost}
