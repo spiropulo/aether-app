@@ -5,8 +5,11 @@ import com.aether.app.common.PagedResult;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.graphql.data.method.annotation.SchemaMapping;
 import org.springframework.stereotype.Controller;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 @Controller
 public class TrainingDataGraphqlController {
@@ -15,6 +18,11 @@ public class TrainingDataGraphqlController {
 
     public TrainingDataGraphqlController(TrainingDataService trainingDataService) {
         this.trainingDataService = trainingDataService;
+    }
+
+    @SchemaMapping(typeName = "TrainingData", field = "entries")
+    public List<TrainingDataEntry> trainingDataEntries(TrainingData td) {
+        return trainingDataService.parseEntries(td.getContent());
     }
 
     @QueryMapping

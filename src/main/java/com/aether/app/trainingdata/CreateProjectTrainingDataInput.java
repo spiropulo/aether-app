@@ -1,10 +1,12 @@
 package com.aether.app.trainingdata;
 
+import java.util.List;
+
 public class CreateProjectTrainingDataInput {
 
     private String tenantId;
     private String projectId;
-    private String content;
+    private List<TrainingDataEntryInput> entries;
     private String description;
 
     public String getTenantId() {
@@ -23,12 +25,12 @@ public class CreateProjectTrainingDataInput {
         this.projectId = projectId;
     }
 
-    public String getContent() {
-        return content;
+    public List<TrainingDataEntryInput> getEntries() {
+        return entries;
     }
 
-    public void setContent(String content) {
-        this.content = content;
+    public void setEntries(List<TrainingDataEntryInput> entries) {
+        this.entries = entries;
     }
 
     public String getDescription() {

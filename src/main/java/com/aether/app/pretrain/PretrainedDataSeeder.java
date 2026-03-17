@@ -30,7 +30,9 @@ import java.util.stream.Stream;
  *   - trainingContent: full JSON payload as string
  *   - fileName: original filename
  *
- * Deduplication: if a document with the same id already exists, the file is skipped.
+ * When aether.training-data.reset-on-startup is true (development/local profile):
+ *   - Deletes all existing pretrained data, then re-seeds from JSON files.
+ * Otherwise: skips files whose document id already exists.
  */
 @Component
 public class PretrainedDataSeeder implements ApplicationRunner {
@@ -40,13 +42,16 @@ public class PretrainedDataSeeder implements ApplicationRunner {
     private final PretrainedDataRepository pretrainedDataRepository;
     private final ObjectMapper objectMapper;
     private final String trainingDataPath;
+    private final boolean resetOnStartup;
 
     public PretrainedDataSeeder(PretrainedDataRepository pretrainedDataRepository,
                                 ObjectMapper objectMapper,
-                                @Value("${aether.training-data.path:training-data}") String trainingDataPath) {
+                                @Value("${aether.training-data.path:training-data}") String trainingDataPath,
+                                @Value("${aether.training-data.reset-on-startup:false}") boolean resetOnStartup) {
         this.pretrainedDataRepository = pretrainedDataRepository;
         this.objectMapper = objectMapper;
         this.trainingDataPath = trainingDataPath;
+        this.resetOnStartup = resetOnStartup;
     }
 
     @Override
@@ -74,6 +79,11 @@ public class PretrainedDataSeeder implements ApplicationRunner {
         if (files.isEmpty()) {
             log.info("No .json or .txt files found in {}", dir.toAbsolutePath());
             return;
+        }
+
+        if (resetOnStartup) {
+            log.info("Development mode: deleting all pretrained data before re-seeding...");
+            pretrainedDataRepository.deleteAll().block(Duration.ofSeconds(30));
         }
 
         log.info("Seeding pretrained data from {} file(s) in {}...", files.size(), dir.toAbsolutePath());
@@ -108,23 +118,30 @@ public class PretrainedDataSeeder implements ApplicationRunner {
         String title = extractAgentTitle(root, fileName);
         String trainingContent = rawContent;
 
+        Mono<PretrainedData> saveEntry = Mono.fromCallable(() -> {
+            PretrainedData entry = new PretrainedData();
+            entry.setId(docId);
+            entry.setTitle(title);
+            entry.setTrainingContent(trainingContent);
+            entry.setFileName(fileName);
+            Instant now = Instant.now();
+            entry.setCreatedAt(now);
+            entry.setUpdatedAt(now);
+            return entry;
+        }).flatMap(entry -> pretrainedDataRepository.save(entry)
+                .doOnSuccess(saved -> log.info("Seeded pretrained entry: '{}' (id={})",
+                        saved.getTitle(), saved.getId())));
+
+        if (resetOnStartup) {
+            return saveEntry;
+        }
         return pretrainedDataRepository.existsById(docId)
                 .flatMap(exists -> {
                     if (exists) {
                         log.info("Pretrained entry already exists, skipping: '{}' (id={})", title, docId);
                         return pretrainedDataRepository.findById(docId);
                     }
-                    PretrainedData entry = new PretrainedData();
-                    entry.setId(docId);
-                    entry.setTitle(title);
-                    entry.setTrainingContent(trainingContent);
-                    entry.setFileName(fileName);
-                    Instant now = Instant.now();
-                    entry.setCreatedAt(now);
-                    entry.setUpdatedAt(now);
-                    return pretrainedDataRepository.save(entry)
-                            .doOnSuccess(saved -> log.info("Seeded pretrained entry: '{}' (id={})",
-                                    saved.getTitle(), saved.getId()));
+                    return saveEntry;
                 });
     }
 

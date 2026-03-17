@@ -62,6 +62,8 @@ type Project {
   country: String
   createdAt: String
   updatedAt: String
+  """Sum of all offer totals in this project. Null if no offers or not yet computed."""
+  total: Float
 }
 
 type ProjectPage {
@@ -356,6 +358,12 @@ type PretrainSelection {
   createdAt: String
 }
 
+"""A single key-value pair for custom training data."""
+type TrainingDataEntry {
+  key: String!
+  value: String!
+}
+
 """
 A unit of training data uploaded by a tenant for use by Agentic Agents.
 projectId is null for tenant-scope entries and set to the parent project's ID
@@ -365,7 +373,8 @@ type TrainingData {
   id: ID!
   tenantId: String!
   projectId: String
-  content: String!
+  """Key-value pairs. Use for pricing context."""
+  entries: [TrainingDataEntry!]!
   description: String
   uploadedAt: String
   createdAt: String
@@ -380,21 +389,26 @@ type TrainingDataPage {
   hasNext: Boolean!
 }
 
+input TrainingDataEntryInput {
+  key: String!
+  value: String!
+}
+
 input CreateTenantTrainingDataInput {
   tenantId: String!
-  content: String!
+  entries: [TrainingDataEntryInput!]!
   description: String
 }
 
 input CreateProjectTrainingDataInput {
   tenantId: String!
   projectId: String!
-  content: String!
+  entries: [TrainingDataEntryInput!]!
   description: String
 }
 
 input UpdateTrainingDataInput {
-  content: String
+  entries: [TrainingDataEntryInput!]
   description: String
 }
 

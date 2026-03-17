@@ -4,6 +4,7 @@ import com.aether.app.project.ProjectService;
 import com.aether.app.project.UpdateProjectInput;
 import com.aether.app.estimate.ProjectExportService;
 import com.aether.app.subscription.SubscriptionService;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -76,6 +77,24 @@ public class EstimateRestController {
         this.trainingContextService = trainingContextService;
         this.tenantAdaptiveAgentClient = tenantAdaptiveAgentClient;
         this.objectMapper = objectMapper;
+    }
+
+    private static boolean isTrainingContextEmpty(String trimmed, ObjectMapper objectMapper) {
+        if (trimmed == null || trimmed.isBlank()) return true;
+        try {
+            JsonNode root = objectMapper.readTree(trimmed);
+            if (root == null || !root.isObject()) return true;
+            boolean catalogEmpty = isEmptyArray(root.get("catalogEntries"));
+            boolean tenantCustomEmpty = isEmptyArray(root.get("tenantCustomEntries"));
+            boolean projectCustomEmpty = isEmptyArray(root.get("projectCustomEntries"));
+            return catalogEmpty && tenantCustomEmpty && projectCustomEmpty;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private static boolean isEmptyArray(JsonNode node) {
+        return node == null || !node.isArray() || node.isEmpty();
     }
 
     @Operation(
@@ -263,7 +282,7 @@ public class EstimateRestController {
                                                         .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
                                             }
                                             String trimmed = trainingJson.trim();
-                                            if ("{\"catalogEntries\":[],\"tenantCustomEntries\":[],\"projectCustomEntries\":[]}".equals(trimmed)) {
+                                            if (isTrainingContextEmpty(trimmed, objectMapper)) {
                                                 return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
                                                         .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
                                             }

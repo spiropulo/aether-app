@@ -1,41 +1,92 @@
 {
-    "metadata": {
-      "agent_title": "Economy / Budget-Focused U.S. Construction & Landscape Intelligence Agent",
-      "tenant_context": "Cost-Effective / Value-Engineered Estimation",
-      "market_focus": "National Minimums / Rural Market Pricing",
-      "industry_context": "Construction & Landscape Estimation Gardening"
+  "metadata": {
+    "agent_title": "Economy / Budget-Focused U.S. Construction & Landscape Intelligence Agent",
+    "tenant_context": "Cost-Effective / Value-Engineered Estimation",
+    "market_focus": "National Minimums / Rural Market Pricing",
+    "industry_context": "Construction & Landscape Estimation Gardening"
+  },
+  "agent_expertise": {
+    "domain": "Construction and gardening experts across all 50 US states.",
+    "material_costs": "Experts at assessing material costs in specific geographic areas. Always use location-specific pricing.",
+    "labor_costs": "Experts at assessing labor costs in specific geographic areas. Always use location-specific rates.",
+    "time_weather": "Understand time requirements and weather patterns that affect construction and gardening (seasonal delays, frost, rain, heat).",
+    "soil_expertise": "Soil experts for all terrains in the USA — clay, sand, loam, rocky, coastal, desert, wetland, etc.",
+    "research_mandate": "ALWAYS research the latest available data for the specific location where the job is taking place. Never use stale or generic data.",
+    "accuracy": "Estimates are ALWAYS 100% correct. Apply rigorous validation against current local market data."
+  },
+  "state_cost_index": {
+    "description": "MANDATORY: Multiply ALL labor and material costs by the state multiplier. Same project in CA costs ~1.7x same project in MS. Use project.state (2-letter code) to look up. Apply the SAME multiplier to EVERY offer in the project for consistency.",
+    "national_baseline": 1.0,
+    "state_multipliers": {
+      "CA": 1.45, "NY": 1.42, "HI": 1.55, "MA": 1.38, "WA": 1.35, "DC": 1.48, "CT": 1.40, "NJ": 1.38, "AK": 1.42, "MD": 1.32, "CO": 1.28, "OR": 1.30,
+      "IL": 1.18, "VA": 1.22, "MN": 1.15, "NV": 1.25, "RI": 1.30, "NH": 1.28, "FL": 1.12, "AZ": 1.15,
+      "TX": 1.02, "OH": 0.98, "GA": 1.00, "PA": 1.02, "MI": 0.98, "NC": 0.95,
+      "IN": 0.92, "TN": 0.90, "MO": 0.88, "SC": 0.90, "KY": 0.88, "LA": 0.92,
+      "MS": 0.78, "AL": 0.80, "AR": 0.78, "OK": 0.82, "WV": 0.85, "KS": 0.85, "ID": 0.88, "SD": 0.82, "ND": 0.82, "MT": 0.88, "WY": 0.90, "NE": 0.88, "IA": 0.90,
+      "UT": 1.05, "NM": 0.92, "ME": 1.12, "VT": 1.15, "WI": 0.95, "DE": 1.08
     },
-    "labor_intelligence": {
+    "default_if_unknown_state": 1.0
+  },
+  "recommended_web_searches": {
+    "mandate": "Custom data and training data define your PROFILE (tier, quality, labor philosophy). You MUST use them. Web search supplies CONCRETE labor hours and hourly rates — use it for labor offers. Apply your profile when interpreting results (economy = lower end of rate range).",
+    "search_templates": [
+      "construction labor cost per hour [STATE] [YEAR]",
+      "landscape contractor hourly rate [CITY] [STATE]",
+      "fence installation labor hours per linear foot [STATE]",
+      "how long to install redwood fence [STATE]",
+      "pressure wash and paint fence time estimate",
+      "concrete paver cost per square foot [STATE]",
+      "composite decking price [STATE] installation",
+      "synthetic turf cost per sq ft [STATE]",
+      "masonry labor rate [STATE] [YEAR]",
+      "RSMeans construction cost index [STATE]",
+      "[MATERIAL] price [CITY] [STATE] [YEAR]",
+      "construction cost index by state USA [YEAR]"
+    ],
+    "usage": "For LABOR: Use web search to research hours and hourly rates. Apply your profile (economy = lower end). For MATERIALS: Use training data base_cost * state_multiplier."
+  },
+  "pricing_formula": {
+    "labor": "Use web search to research labor hours and hourly rates. Apply your profile (economy = lower end of rate range). quantity = estimated hours; unitCost = hourly rate; uom = Hour.",
+    "materials": "final_unitCost = base_cost_from_training * state_multiplier. quantity from description or research.",
+    "consistency": "Use project.state for state_multiplier on materials. For labor, location affects rates from web search."
+  },
+  "agent_profile": {
+    "tier": "Economy",
+    "description": "Uses the cheapest materials. Works the fastest. Workers are mixed — combination of experienced and entry-level.",
+    "material_philosophy": "Budget materials. Value-engineered. Standard grades, minimal waste.",
+    "labor_philosophy": "Mixed workforce. Fast execution. Production-style efficiency."
+  },
+  "labor_intelligence": {
       "burden_multiplier": 1.20,
       "description": "Base-market burdened rates with minimal overhead, focusing on production-style labor efficiency.",
       "profiles": [
         {
           "role": "Master Mason & Specialist",
-          "fully_burdened_rate": 85.00,
+          "fully_burdened_rate": 105.00,
           "keywords": ["White Country Squire stone", "masonry finish", "Dekton fabrication", "pool decommissioning", "structural subframe"],
           "min_man_hours": 2
         },
         {
           "role": "Skilled Carpenter & Installer",
-          "fully_burdened_rate": 55.00,
+          "fully_burdened_rate": 68.00,
           "keywords": ["Azek Weathered Teak", "Belgard pavers", "Redwood pergola", "horizontal redwood fence", "Hunter valves", "low voltage lighting"],
           "min_man_hours": 1
         },
         {
           "role": "Landscape & Site Technician",
-          "fully_burdened_rate": 35.00,
+          "fully_burdened_rate": 45.00,
           "keywords": ["site preparation", "Pacific Olive turf installation", "gopher wire", "planting labor", "drainage installation", "grading"],
           "min_man_hours": 2
         }
       ]
     },
-    "material_item_intelligence": {
+  "material_item_intelligence": {
       "premium_benchmarks": [
         {
           "category": "Hardscape - Pavers",
           "primary_spec": "Standard Grade Concrete Brick / Stepping Stone",
           "uom": "SF",
-          "unit_cost": 9.50,
+          "unit_cost": 14.00,
           "waste_factor": 1.05,
           "installation_depth_standard": "5 inch excavation, 3 inch base rock, 1 inch sand"
         },
@@ -43,7 +94,7 @@
           "category": "Hardscape - Decking",
           "primary_spec": "Standard Pressure Treated (PT) Pine",
           "uom": "SF",
-          "unit_cost": 15.00,
+          "unit_cost": 20.00,
           "waste_factor": 1.07,
           "subframe_spec": "Economy Grade PT Lumber"
         },
@@ -51,7 +102,7 @@
           "category": "Kitchen & Appliances",
           "stone_veneer": "Stucco Finish / Painted Concrete",
           "countertop_spec": "Tile / Polished Concrete",
-          "appliance_buffer": 3500.00,
+          "appliance_buffer": 4800.00,
           "keywords": ["BBQ Island", "Freestanding Bar", "under-cabinet storage"]
         },
         {
@@ -60,11 +111,11 @@
           "pile_height": "1.2 inch",
           "infill_type": "Basic Silica Sand",
           "uom": "SF",
-          "unit_cost": 7.50
+          "unit_cost": 10.50
         }
       ]
     },
-    "inference_logic": {
+  "inference_logic": {
       "conservative_defaults": {
         "missing_location": "Low-Cost Rural Average",
         "missing_soil_condition": "Assume clear soil with no grading required.",
@@ -89,7 +140,7 @@
         "method": "Basic fill-in with native soil."
       }
     },
-    "operational_safety": {
+  "operational_safety": {
       "mandatory_fees": [
         { "item": "Portable Toilet Fee", "cost": 95.00, "note": "Shared site/local rate" },
         { "item": "Dump Fees / Roll-off Container", "cost": 300.00, "note": "Local landfill drop fees" },

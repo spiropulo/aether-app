@@ -2,21 +2,63 @@ package com.aether.app.trainingdata;
 
 import com.aether.app.common.PageInput;
 import com.aether.app.common.PagedResult;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class TrainingDataService {
 
-    private final TrainingDataRepository trainingDataRepository;
+    private static final TypeReference<List<Map<String, String>>> ENTRIES_TYPE = new TypeReference<>() {};
 
-    public TrainingDataService(TrainingDataRepository trainingDataRepository) {
+    private final TrainingDataRepository trainingDataRepository;
+    private final ObjectMapper objectMapper;
+
+    public TrainingDataService(TrainingDataRepository trainingDataRepository, ObjectMapper objectMapper) {
         this.trainingDataRepository = trainingDataRepository;
+        this.objectMapper = objectMapper;
+    }
+
+    /**
+     * Parse content JSON to list of key-value entries. Backward compat: if not valid JSON array, treat as legacy single entry.
+     */
+    public List<TrainingDataEntry> parseEntries(String content) {
+        if (content == null || content.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<Map<String, String>> raw = objectMapper.readValue(content, ENTRIES_TYPE);
+            if (raw == null) return List.of();
+            List<TrainingDataEntry> result = new ArrayList<>();
+            for (Map<String, String> m : raw) {
+                String k = m != null ? m.get("key") : null;
+                String v = m != null ? m.get("value") : null;
+                if (k != null) result.add(new TrainingDataEntry(k, v != null ? v : ""));
+            }
+            return result;
+        } catch (Exception e) {
+            return List.of(new TrainingDataEntry("content", content));
+        }
+    }
+
+    private String serializeEntries(List<TrainingDataEntryInput> entries) {
+        if (entries == null || entries.isEmpty()) return "[]";
+        try {
+            List<Map<String, String>> raw = entries.stream()
+                    .map(e -> Map.<String, String>of("key", e.getKey() != null ? e.getKey() : "", "value", e.getValue() != null ? e.getValue() : ""))
+                    .toList();
+            return objectMapper.writeValueAsString(raw);
+        } catch (Exception e) {
+            return "[]";
+        }
     }
 
     public Mono<PagedResult<TrainingData>> getTenantTrainingData(String tenantId, PageInput page, String search) {
@@ -45,7 +87,7 @@ public class TrainingDataService {
     public Mono<TrainingData> createTenantTrainingData(CreateTenantTrainingDataInput input) {
         TrainingData entry = new TrainingData();
         entry.setTenantId(input.getTenantId());
-        entry.setContent(input.getContent());
+        entry.setContent(serializeEntries(input.getEntries()));
         entry.setDescription(input.getDescription());
         Instant now = Instant.now();
         entry.setUploadedAt(now);
@@ -59,7 +101,7 @@ public class TrainingDataService {
         TrainingData entry = new TrainingData();
         entry.setTenantId(input.getTenantId());
         entry.setProjectId(input.getProjectId());
-        entry.setContent(input.getContent());
+        entry.setContent(serializeEntries(input.getEntries()));
         entry.setDescription(input.getDescription());
         Instant now = Instant.now();
         entry.setUploadedAt(now);
@@ -72,8 +114,8 @@ public class TrainingDataService {
     public Mono<TrainingData> updateTrainingData(String id, String tenantId, UpdateTrainingDataInput input) {
         return trainingDataRepository.findByIdAndTenantId(id, tenantId)
                 .flatMap(existing -> {
-                    if (input.getContent() != null) {
-                        existing.setContent(input.getContent());
+                    if (input.getEntries() != null) {
+                        existing.setContent(serializeEntries(input.getEntries()));
                     }
                     if (input.getDescription() != null) {
                         existing.setDescription(input.getDescription());
@@ -95,7 +137,10 @@ public class TrainingDataService {
         String term = search.toLowerCase();
         boolean contentMatch = td.getContent() != null && td.getContent().toLowerCase().contains(term);
         boolean descMatch = td.getDescription() != null && td.getDescription().toLowerCase().contains(term);
-        return contentMatch || descMatch;
+        boolean entriesMatch = parseEntries(td.getContent()).stream()
+                .anyMatch(e -> (e.key() != null && e.key().toLowerCase().contains(term))
+                        || (e.value() != null && e.value().toLowerCase().contains(term)));
+        return contentMatch || descMatch || entriesMatch;
     }
 
     private Mono<PagedResult<TrainingData>> paginate(Flux<TrainingData> source, PageInput page) {

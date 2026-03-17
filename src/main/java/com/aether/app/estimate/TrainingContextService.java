@@ -3,7 +3,9 @@ package com.aether.app.estimate;
 import com.aether.app.pretrain.PretrainedData;
 import com.aether.app.pretrain.PretrainedService;
 import com.aether.app.trainingdata.TrainingData;
+import com.aether.app.trainingdata.TrainingDataEntry;
 import com.aether.app.trainingdata.TrainingDataRepository;
+import com.aether.app.trainingdata.TrainingDataService;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,13 +32,16 @@ public class TrainingContextService {
 
     private final PretrainedService pretrainedService;
     private final TrainingDataRepository trainingDataRepository;
+    private final TrainingDataService trainingDataService;
     private final ObjectMapper objectMapper;
 
     public TrainingContextService(PretrainedService pretrainedService,
                                    TrainingDataRepository trainingDataRepository,
+                                   TrainingDataService trainingDataService,
                                    ObjectMapper objectMapper) {
         this.pretrainedService = pretrainedService;
         this.trainingDataRepository = trainingDataRepository;
+        this.trainingDataService = trainingDataService;
         this.objectMapper = objectMapper;
     }
 
@@ -164,19 +169,19 @@ public class TrainingContextService {
         Flux<TrainingContextEntry> catalogFlux = pretrainedService.getTenantSelectedPretrainData(tenantId)
                 .map(this::toCatalogEntry);
 
-        Flux<TrainingContextEntry> tenantCustomFlux = trainingDataRepository.findAllByTenantId(tenantId)
+        Mono<List<TrainingDataEntry>> tenantCustomPairs = trainingDataRepository.findAllByTenantId(tenantId)
                 .filter(td -> td.getProjectId() == null)
-                .map(this::toCustomEntry);
+                .flatMapIterable(td -> trainingDataService.parseEntries(td.getContent()))
+                .collectList();
 
-        Flux<TrainingContextEntry> projectCustomFlux = trainingDataRepository.findAllByTenantId(tenantId)
+        Mono<List<TrainingDataEntry>> projectCustomPairs = trainingDataRepository.findAllByTenantId(tenantId)
                 .filter(td -> projectId.equals(td.getProjectId()))
-                .map(this::toCustomEntry);
+                .flatMapIterable(td -> trainingDataService.parseEntries(td.getContent()))
+                .collectList();
 
         Mono<List<TrainingContextEntry>> catalogList = catalogFlux.collectList();
-        Mono<List<TrainingContextEntry>> tenantCustomList = tenantCustomFlux.collectList();
-        Mono<List<TrainingContextEntry>> projectCustomList = projectCustomFlux.collectList();
 
-        return Mono.zip(catalogList, tenantCustomList, projectCustomList)
+        return Mono.zip(catalogList, projectCustomPairs, tenantCustomPairs)
                 .map(tuple -> new ProjectTrainingContextDto(
                         tuple.getT1(),
                         tuple.getT2(),
@@ -210,11 +215,15 @@ public class TrainingContextService {
             List<TrainingContextEntry> customEntries
     ) {}
 
+    /**
+     * Training data order for agent: (1) AI Training catalog, (2) Project Detail training, (3) AI Training custom.
+     * Field order determines JSON serialization order sent to the agent.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ProjectTrainingContextDto(
             List<TrainingContextEntry> catalogEntries,
-            List<TrainingContextEntry> tenantCustomEntries,
-            List<TrainingContextEntry> projectCustomEntries
+            List<TrainingDataEntry> projectCustomEntries,
+            List<TrainingDataEntry> tenantCustomEntries
     ) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

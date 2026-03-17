@@ -1,16 +1,18 @@
 package com.aether.app.trainingdata;
 
+import java.util.List;
+
 public class UpdateTrainingDataInput {
 
-    private String content;
+    private List<TrainingDataEntryInput> entries;
     private String description;
 
-    public String getContent() {
-        return content;
+    public List<TrainingDataEntryInput> getEntries() {
+        return entries;
     }
 
-    public void setContent(String content) {
-        this.content = content;
+    public void setEntries(List<TrainingDataEntryInput> entries) {
+        this.entries = entries;
     }
 
     public String getDescription() {

@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "agent_title": "Conservative / Premium U.S. Construction & Landscape Intelligence Agent",
-    "tenant_context": "Luxury / Highest-Quality Estimation",
-    "market_focus": "Premium Urban & Suburban Markets — Top-Tier Pricing",
+    "agent_title": "White Glove / Concierge U.S. Construction & Landscape Intelligence Agent",
+    "tenant_context": "Concierge / Highest-End Estimation — 50% Premium Over Premium",
+    "market_focus": "Ultra-Premium Urban Markets — White Glove Service Pricing",
     "industry_context": "Construction & Landscape Estimation Gardening"
   },
   "agent_expertise": {
@@ -73,13 +73,13 @@
     "default_if_unknown_state": 1.0
   },
   "agent_profile": {
-    "tier": "Conservative",
-    "description": "VERY expensive. Only uses the MOST expensive products of the HIGHEST possible quality. All workers are the best in the industry — master craftsmen, licensed specialists, award-winning contractors.",
-    "material_philosophy": "Premium-only. No substitutions. Top brands, certified materials, extended warranties.",
-    "labor_philosophy": "Elite workforce only. Master-level tradespeople, certified installers, senior project managers."
+    "tier": "White Glove",
+    "description": "Concierge-level service. 50% premium over premium. Only the finest materials, certified master craftsmen, dedicated project managers, white-glove installation and cleanup.",
+    "material_philosophy": "Ultra-premium only. Imported materials, designer specifications, lifetime warranties.",
+    "labor_philosophy": "Elite concierge workforce. Master craftsmen with 15+ years, dedicated PM, white-glove delivery."
   },
   "recommended_web_searches": {
-    "mandate": "Custom data and training data define your PROFILE (tier, quality, labor philosophy). You MUST use them. Web search supplies CONCRETE labor hours and hourly rates — use it for labor offers. Apply your profile when interpreting results (conservative = premium/high end of rate range).",
+    "mandate": "Custom data and training data define your PROFILE (tier, quality, labor philosophy). You MUST use them. Web search supplies CONCRETE labor hours and hourly rates — use it for labor offers. Apply your profile when interpreting results (whiteglove = top of rate range, premium craftsmen).",
     "search_templates": [
       "construction labor cost per hour [STATE] [YEAR]",
       "landscape contractor hourly rate [CITY] [STATE]",
@@ -94,37 +94,37 @@
       "[MATERIAL] price [CITY] [STATE] [YEAR]",
       "construction cost index by state USA [YEAR]"
     ],
-    "usage": "For LABOR: Use web search to research hours and hourly rates. Apply your profile (conservative = premium/high end). For MATERIALS: Use training data base_cost * state_multiplier."
+    "usage": "For LABOR: Use web search to research hours and hourly rates. Apply your profile (whiteglove = top of rate range). For MATERIALS: Use training data base_cost * state_multiplier."
   },
   "pricing_formula": {
-    "labor": "Use web search to research labor hours and hourly rates. Apply your profile (conservative = premium/high end). quantity = estimated hours; unitCost = hourly rate; uom = Hour.",
-    "materials": "final_unitCost = base_cost_from_training * state_multiplier. quantity from description or research.",
+    "labor": "Use web search to research labor hours and hourly rates. Apply your profile (whiteglove = top of rate range). quantity = estimated hours; unitCost = hourly rate; uom = Hour.",
+    "materials": "final_unitCost = base_cost_from_training * state_multiplier. White Glove material costs are 50% higher than premium. quantity from description or research.",
     "consistency": "Use project.state for state_multiplier on materials. For labor, location affects rates from web search."
   },
   "labor_intelligence": {
-    "burden_multiplier": 1.65,
-    "description": "Premium burdened rates: full benefits, top-tier insurance, executive overhead, quality assurance programs.",
+    "burden_multiplier": 2.48,
+    "description": "White glove burdened rates: concierge overhead, dedicated PM, premium insurance, extended warranties.",
     "profiles": [
       {
         "role": "Master Mason & Specialist",
-        "fully_burdened_rate": 245.00,
+        "fully_burdened_rate": 367.50,
         "keywords": ["White Country Squire stone", "masonry finish", "Dekton fabrication", "pool decommissioning", "structural subframe", "premium stone", "custom fabrication"],
         "min_man_hours": 6,
-        "note": "Award-winning craftsmen, certified specialists"
+        "note": "Award-winning craftsmen, certified specialists — 50% premium"
       },
       {
         "role": "Skilled Carpenter & Installer",
-        "fully_burdened_rate": 165.00,
+        "fully_burdened_rate": 247.50,
         "keywords": ["Azek Weathered Teak", "Belgard pavers", "Redwood pergola", "horizontal redwood fence", "Hunter valves", "low voltage lighting", "premium decking", "custom millwork"],
         "min_man_hours": 3,
-        "note": "Licensed journeymen, 10+ years experience"
+        "note": "Licensed journeymen, 10+ years experience — 50% premium"
       },
       {
         "role": "Landscape & Site Technician",
-        "fully_burdened_rate": 115.00,
+        "fully_burdened_rate": 172.50,
         "keywords": ["site preparation", "Pacific Olive turf installation", "gopher wire", "planting labor", "drainage installation", "grading", "irrigation", "hardscape base"],
         "min_man_hours": 6,
-        "note": "Certified landscape professionals"
+        "note": "Certified landscape professionals — 50% premium"
       }
     ]
   },
@@ -132,17 +132,17 @@
     "premium_benchmarks": [
       {
         "category": "Hardscape - Pavers",
-        "primary_spec": "Premium Natural Stone / High-End Porcelain Paver",
+        "primary_spec": "Ultra-Premium Natural Stone / Designer Porcelain Paver",
         "uom": "SF",
-        "unit_cost": 52.00,
+        "unit_cost": 78.00,
         "waste_factor": 1.12,
         "installation_depth_standard": "9 inch excavation, 5 inch base rock, 2 inch sand, premium bedding"
       },
       {
         "category": "Hardscape - Decking",
-        "primary_spec": "Premium Composite (Trex Transcend) / Ipe Hardwood",
+        "primary_spec": "Designer Composite (Trex Transcend) / Ipe Hardwood",
         "uom": "SF",
-        "unit_cost": 58.00,
+        "unit_cost": 87.00,
         "waste_factor": 1.15,
         "subframe_spec": "Premium PT or Cedar, hidden fasteners"
       },
@@ -150,7 +150,7 @@
         "category": "Kitchen & Appliances",
         "stone_veneer": "Natural Stone Veneer / Premium Cultured",
         "countertop_spec": "Premium Granite / Quartzite / Dekton",
-        "appliance_buffer": 18500.00,
+        "appliance_buffer": 27750.00,
         "keywords": ["BBQ Island", "Freestanding Bar", "under-cabinet storage", "premium appliances"]
       },
       {
@@ -159,7 +159,7 @@
         "pile_height": "1.75 inch",
         "infill_type": "Premium Silica + Envirofill",
         "uom": "SF",
-        "unit_cost": 28.00
+        "unit_cost": 42.00
       }
     ]
   },
@@ -184,15 +184,15 @@
       }
     ],
     "pool_specific_logic": {
-      "decommissioning_estimate": 28500.00,
+      "decommissioning_estimate": 42750.00,
       "method": "Full engineered removal, certified disposal, premium backfill."
     }
   },
   "operational_safety": {
     "mandatory_fees": [
-      { "item": "Portable Toilet Fee", "cost": 285.00, "note": "Premium unit, weekly service" },
-      { "item": "Dump Fees / Roll-off Container", "cost": 850.00, "note": "Premium 15-yard, certified disposal" },
-      { "item": "Equipment Usage", "cost": 750.00, "note": "Premium machinery, daily rate" }
+      { "item": "Portable Toilet Fee", "cost": 427.50, "note": "Premium unit, weekly service" },
+      { "item": "Dump Fees / Roll-off Container", "cost": 1275.00, "note": "Premium 15-yard, certified disposal" },
+      { "item": "Equipment Usage", "cost": 1125.00, "note": "Premium machinery, daily rate" }
     ],
     "waste_policy": {
       "lumber": 1.15,
