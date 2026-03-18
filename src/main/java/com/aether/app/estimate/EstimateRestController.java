@@ -1,5 +1,7 @@
 package com.aether.app.estimate;
 
+import com.aether.app.offer.Offer;
+import com.aether.app.offer.OfferService;
 import com.aether.app.project.ProjectService;
 import com.aether.app.project.UpdateProjectInput;
 import com.aether.app.estimate.ProjectExportService;
@@ -33,6 +35,9 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -56,6 +61,8 @@ public class EstimateRestController {
     private final SubscriptionService subscriptionService;
     private final TrainingContextService trainingContextService;
     private final TenantAdaptiveAgentClient tenantAdaptiveAgentClient;
+    private final PricingRunService pricingRunService;
+    private final OfferService offerService;
     private final ObjectMapper objectMapper;
 
     @Value("${aether.pubsub.estimate-topic:}")
@@ -68,6 +75,8 @@ public class EstimateRestController {
                                   SubscriptionService subscriptionService,
                                   TrainingContextService trainingContextService,
                                   TenantAdaptiveAgentClient tenantAdaptiveAgentClient,
+                                  PricingRunService pricingRunService,
+                                  OfferService offerService,
                                   ObjectMapper objectMapper) {
         this.estimateService = estimateService;
         this.storageService = storageService;
@@ -76,6 +85,8 @@ public class EstimateRestController {
         this.subscriptionService = subscriptionService;
         this.trainingContextService = trainingContextService;
         this.tenantAdaptiveAgentClient = tenantAdaptiveAgentClient;
+        this.pricingRunService = pricingRunService;
+        this.offerService = offerService;
         this.objectMapper = objectMapper;
     }
 
@@ -298,6 +309,49 @@ public class EstimateRestController {
                                                             .flatMap(agentResponse -> {
                                                                 try {
                                                                     Object parsed = objectMapper.readValue(agentResponse, Object.class);
+                                                                    // Persist pricing run report for UI visibility
+                                                                    if (parsed instanceof Map<?, ?> m) {
+                                                                        Object ar = m.get("agent_report");
+                                                                        String agentReport = ar instanceof String s ? s : (ar != null ? ar.toString() : null);
+                                                                        Object toolCallLogObj = m.get("tool_call_log");
+                                                                        String toolCallLogJson = toolCallLogObj != null ? objectMapper.writeValueAsString(toolCallLogObj) : null;
+                                                                        Object agentActivityLogObj = m.get("agent_activity_log");
+                                                                        String agentActivityLogJson = agentActivityLogObj != null ? objectMapper.writeValueAsString(agentActivityLogObj) : null;
+                                                                        Object tcm = m.get("tool_calls_made");
+                                                                        final Integer toolCallsMade = tcm instanceof Number n ? n.intValue() : null;
+                                                                        return offerService.getOffersByProject(tenantId, projectId)
+                                                                                .map(offers -> {
+                                                                                    List<Map<String, Object>> snapshot = new ArrayList<>();
+                                                                                    double projectTotal = 0.0;
+                                                                                    for (Offer o : offers) {
+                                                                                        double total = o.getTotal() != null ? o.getTotal() : (o.getQuantity() != null && o.getUnitCost() != null ? o.getQuantity() * o.getUnitCost() : 0.0);
+                                                                                        projectTotal += total;
+                                                                                        Map<String, Object> entry = new LinkedHashMap<>();
+                                                                                        entry.put("taskId", o.getTaskId());
+                                                                                        entry.put("name", o.getName());
+                                                                                        entry.put("quantity", o.getQuantity());
+                                                                                        entry.put("unitCost", o.getUnitCost());
+                                                                                        entry.put("total", total);
+                                                                                        entry.put("uom", o.getUom());
+                                                                                        snapshot.add(entry);
+                                                                                    }
+                                                                                    Map<String, Object> wrapper = new LinkedHashMap<>();
+                                                                                    wrapper.put("offers", snapshot);
+                                                                                    wrapper.put("projectTotal", projectTotal);
+                                                                                    try {
+                                                                                        return objectMapper.writeValueAsString(wrapper);
+                                                                                    } catch (Exception e) {
+                                                                                        return "{}";
+                                                                                    }
+                                                                                })
+                                                                                .flatMap(offersSnapshot -> {
+                                                                                    String report = PricingRunReportBuilder.build(
+                                                                                            agentReport, offersSnapshot, toolCallsMade,
+                                                                                            java.time.Instant.now(), objectMapper);
+                                                                                    return pricingRunService.save(tenantId, projectId, agentReport, toolCallLogJson, agentActivityLogJson, toolCallsMade, offersSnapshot, report);
+                                                                                })
+                                                                                .thenReturn(ResponseEntity.ok().<Object>body(parsed));
+                                                                    }
                                                                     return Mono.just(ResponseEntity.ok().<Object>body(parsed));
                                                                 } catch (Exception e) {
                                                                     log.warn("Could not parse agent response as JSON, returning raw: {}", e.getMessage());
@@ -305,8 +359,18 @@ public class EstimateRestController {
                                                                 }
                                                             })
                                                             .doFinally(signal -> projectService.updateProject(projectId, tenantId, restoreInput).subscribe())
-                                                            .onErrorResume(ex -> Mono.just(ResponseEntity.<Object>status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                                                    .body(Map.of("detail", "Pricing failed: " + ex.getMessage())))));
+                                                            .onErrorResume(ex -> {
+                                                                String detail = "Pricing failed: " + ex.getMessage();
+                                                                if (ex instanceof org.springframework.web.reactive.function.client.WebClientResponseException wce) {
+                                                                    try {
+                                                                        JsonNode body = objectMapper.readTree(wce.getResponseBodyAsString());
+                                                                        if (body != null && body.has("detail")) {
+                                                                            detail = body.get("detail").asText();
+                                                                        }
+                                                                    } catch (Exception ignored) { /* use default */ }
+                                                                }
+                                                                return Mono.just(ResponseEntity.<Object>status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("detail", detail)));
+                                                            }));
                                         });
                             });
                 })

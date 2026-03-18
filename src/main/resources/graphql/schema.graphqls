@@ -412,6 +412,27 @@ input UpdateTrainingDataInput {
   description: String
 }
 
+# ─── Pricing Run (agentic pricing reports) ───────────────────────────────────
+
+"""Record of an agentic pricing run for a project. Stores what the AI agent did."""
+type PricingRun {
+  id: ID!
+  tenantId: String!
+  projectId: String!
+  """Human-readable report: high-level summary and pricing decisions."""
+  report: String
+  """Agent's summary report (plain text or markdown)."""
+  agentReport: String
+  """JSON: tool call log entries."""
+  toolCallLog: String
+  """JSON: agent activity log (stages, timestamps)."""
+  agentActivityLog: String
+  toolCallsMade: Int
+  runAt: String!
+  """JSON: snapshot of offers (name, quantity, unitCost, total) at time of run."""
+  offersSnapshot: String
+}
+
 # ─── Project Email (history & send) ──────────────────────────────────────────
 
 """Record of an email sent for a project. Stored for history."""
@@ -492,6 +513,10 @@ type Query {
   # Project Email History
   """All emails sent for a project, newest first."""
   projectEmails(projectId: String!, tenantId: String!): [ProjectEmail!]!
+
+  # Pricing Runs (agentic reports)
+  """All pricing runs for a project, newest first. Shows what the AI agent did."""
+  projectPricingRuns(projectId: String!, tenantId: String!): [PricingRun!]!
 }
 
 # ─── Mutations ───────────────────────────────────────────────────────────────
@@ -550,4 +575,8 @@ type Mutation {
   # Project Email
   """Send an email to project or task assignees. Stored in history."""
   sendProjectEmail(input: SendProjectEmailInput!): ProjectEmail!
+
+  # Pricing Runs
+  """Delete a pricing run record. Requires projectId and tenantId for access control."""
+  deletePricingRun(id: ID!, projectId: String!, tenantId: String!): Boolean!
 }
