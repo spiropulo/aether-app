@@ -12,5 +12,8 @@ public interface OfferRepository extends FirestoreReactiveRepository<Offer> {
 
     Flux<Offer> findAllByProjectIdAndTenantId(String projectId, String tenantId);
 
+    /** Offers in the tenant where {@code assigneeIds} contains the given user profile id (Firestore {@code array_contains}). */
+    Flux<Offer> findAllByTenantIdAndAssigneeIdsContaining(String tenantId, String assigneeId);
+
     Mono<Offer> findByIdAndTaskIdAndProjectIdAndTenantId(String id, String taskId, String projectId, String tenantId);
 }

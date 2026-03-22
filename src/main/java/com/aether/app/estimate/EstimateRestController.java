@@ -60,6 +60,7 @@ public class EstimateRestController {
     private final ProjectExportService projectExportService;
     private final SubscriptionService subscriptionService;
     private final TrainingContextService trainingContextService;
+    private final LaborSchedulingContextService laborSchedulingContextService;
     private final TenantAdaptiveAgentClient tenantAdaptiveAgentClient;
     private final PricingRunService pricingRunService;
     private final OfferService offerService;
@@ -74,6 +75,7 @@ public class EstimateRestController {
                                   ProjectExportService projectExportService,
                                   SubscriptionService subscriptionService,
                                   TrainingContextService trainingContextService,
+                                  LaborSchedulingContextService laborSchedulingContextService,
                                   TenantAdaptiveAgentClient tenantAdaptiveAgentClient,
                                   PricingRunService pricingRunService,
                                   OfferService offerService,
@@ -84,6 +86,7 @@ public class EstimateRestController {
         this.projectExportService = projectExportService;
         this.subscriptionService = subscriptionService;
         this.trainingContextService = trainingContextService;
+        this.laborSchedulingContextService = laborSchedulingContextService;
         this.tenantAdaptiveAgentClient = tenantAdaptiveAgentClient;
         this.pricingRunService = pricingRunService;
         this.offerService = offerService;
@@ -95,13 +98,42 @@ public class EstimateRestController {
         try {
             JsonNode root = objectMapper.readTree(trimmed);
             if (root == null || !root.isObject()) return true;
-            boolean catalogEmpty = isEmptyArray(root.get("catalogEntries"));
             boolean tenantCustomEmpty = isEmptyArray(root.get("tenantCustomEntries"));
             boolean projectCustomEmpty = isEmptyArray(root.get("projectCustomEntries"));
-            return catalogEmpty && tenantCustomEmpty && projectCustomEmpty;
+            boolean factsEmpty = isEmptyArray(root.get("structuredPricingFacts"));
+            boolean trainingSlicesEmpty = tenantCustomEmpty && projectCustomEmpty && factsEmpty;
+            if (!trainingSlicesEmpty) {
+                return false;
+            }
+            return !hasViableLaborScheduling(root);
         } catch (Exception e) {
             return true;
         }
+    }
+
+    /**
+     * True when calendar tasks exist and at least one team member has a positive effective hourly rate.
+     */
+    private static boolean hasViableLaborScheduling(JsonNode root) {
+        JsonNode ls = root.get("laborScheduling");
+        if (ls == null || !ls.isObject()) {
+            return false;
+        }
+        JsonNode tasks = ls.get("tasks");
+        if (tasks == null || !tasks.isArray() || tasks.isEmpty()) {
+            return false;
+        }
+        JsonNode members = ls.get("members");
+        if (members == null || !members.isArray()) {
+            return false;
+        }
+        for (JsonNode m : members) {
+            JsonNode er = m.get("effectiveHourlyRate");
+            if (er != null && er.isNumber() && er.doubleValue() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isEmptyArray(JsonNode node) {
@@ -247,14 +279,15 @@ public class EstimateRestController {
             summary = "Request agentic project pricing",
             operationId = "price_project_api_v1_estimate_price_project_post",
             description = """
-                    Triggers the Tenant-Adaptive agent to price a project using tenant and project training data.
-                    The app aggregates tenant-level (catalog + custom) and project-level training data,
-                    sends it to the AI, which enriches the project via GraphQL mutations.
+                    Triggers the Tenant-Adaptive agent to price **offers** (tasks supply calendar dates only).
+                    Uses tenant/project training, structured pricing facts, and labor scheduling context
+                    (task calendar day counts, offer-level assignees for rated labor, member hourly rates, project overrides).
+                    The AI updates offer lines via GraphQL mutations.
                     """
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pricing completed. Returns agent report and tool call log."),
-            @ApiResponse(responseCode = "400", description = "No training data configured. Add tenant or project training data first.",
+            @ApiResponse(responseCode = "400", description = "No training or viable labor context. Add tenant/project training data (required for value-based and implied labor lines). For rated crew labor, ensure task calendar dates and team members with positive hourly rates; assign members on offers as needed.",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             examples = @ExampleObject(value = "{\"detail\":\"Configure tenant or project training data before requesting pricing.\"}"))),
             @ApiResponse(responseCode = "404", description = "Project not found or access denied."),
@@ -287,12 +320,16 @@ public class EstimateRestController {
                                             .body(Map.of("detail", "Tenant-Adaptive agent is not configured. Set aether.agent.tenant-adaptive-url.")));
                                 }
                                 return trainingContextService.getTrainingContextForProject(tenantId, projectId)
-                                        .flatMap(trainingJson -> {
-                                            if (trainingJson == null || trainingJson.isBlank() || "{}".equals(trainingJson.trim())) {
+                                        .flatMap(trainingJson ->
+                                                laborSchedulingContextService.mergeLaborSchedulingIntoTraining(
+                                                        trainingJson != null ? trainingJson : "", tenantId, projectId, project))
+                                        .flatMap(mergedTrainingJson -> {
+                                            if (mergedTrainingJson == null || mergedTrainingJson.isBlank()
+                                                    || "{}".equals(mergedTrainingJson.trim())) {
                                                 return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
                                                         .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
                                             }
-                                            String trimmed = trainingJson.trim();
+                                            String trimmed = mergedTrainingJson.trim();
                                             if (isTrainingContextEmpty(trimmed, objectMapper)) {
                                                 return Mono.just(ResponseEntity.<Object>status(HttpStatus.BAD_REQUEST)
                                                         .body(Map.of("detail", "Configure tenant or project training data before requesting pricing.")));
@@ -301,9 +338,9 @@ public class EstimateRestController {
                                             UpdateProjectInput pricingInput = new UpdateProjectInput();
                                             pricingInput.setStatus("PRICING");
                                             UpdateProjectInput restoreInput = new UpdateProjectInput();
-                                            restoreInput.setStatus(previousStatus != null && !previousStatus.isBlank() ? previousStatus : "Active");
+                                            restoreInput.setStatus(previousStatus != null && !previousStatus.isBlank() ? previousStatus : "In Progress");
                                             return projectService.updateProject(projectId, tenantId, pricingInput)
-                                                    .flatMap(updated -> tenantAdaptiveAgentClient.processPricing(trainingJson, tenantId, projectId)
+                                                    .flatMap(updated -> tenantAdaptiveAgentClient.processPricing(mergedTrainingJson, tenantId, projectId)
                                                             .flatMap(agentResponse -> subscriptionService.recordUsage(tenantId)
                                                                     .thenReturn(agentResponse))
                                                             .flatMap(agentResponse -> {

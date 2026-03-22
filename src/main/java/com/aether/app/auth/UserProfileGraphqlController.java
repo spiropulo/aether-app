@@ -55,8 +55,11 @@ public class UserProfileGraphqlController {
     }
 
     @MutationMapping
-    public Mono<UserProfile> addMember(@Argument String organizationName, @Argument AddMemberInput input) {
-        return userProfileService.addMember(organizationName, input);
+    public Mono<UserProfile> addMember(@Argument String callerId,
+                                        @Argument String tenantId,
+                                        @Argument String organizationName,
+                                        @Argument AddMemberInput input) {
+        return userProfileService.addMember(callerId, tenantId, organizationName, input);
     }
 
     @MutationMapping

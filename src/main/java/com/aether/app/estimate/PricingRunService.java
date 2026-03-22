@@ -60,4 +60,18 @@ public class PricingRunService {
                 .flatMap(r -> pricingRunRepository.delete(r).thenReturn(true))
                 .switchIfEmpty(Mono.just(false));
     }
+
+    /**
+     * Delete every pricing run for a project. Scoped by tenantId for access control.
+     *
+     * @return number of records removed
+     */
+    public Mono<Integer> deleteAllForProject(String projectId, String tenantId) {
+        return pricingRunRepository.findAllByProjectIdAndTenantId(projectId, tenantId)
+                .filter(r -> projectId.equals(r.getProjectId()) && tenantId.equals(r.getTenantId()))
+                .collectList()
+                .flatMap(list -> Flux.fromIterable(list)
+                        .flatMap(pricingRunRepository::delete)
+                        .then(Mono.defer(() -> Mono.just(list.size()))));
+    }
 }

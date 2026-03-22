@@ -22,7 +22,8 @@ spring:
         host-port: ${FIRESTORE_EMULATOR_HOST:localhost:8075}
       pubsub:
         enabled: true
-        emulator-host: ${PUBSUB_EMULATOR_HOST:localhost:8085}
+        # 127.0.0.1 avoids macOS resolving localhost to ::1 while Firebase Pub/Sub listens on IPv4 only
+        emulator-host: ${PUBSUB_EMULATOR_HOST:127.0.0.1:8085}
       storage:
         enabled: true
 
@@ -39,9 +40,6 @@ spring:
             enable: ${MAIL_SMTP_STARTTLS:false}
 
 aether:
-  training-data:
-    # In development: delete all pretrained data and re-seed from JSON files on every startup.
-    reset-on-startup: true
   # Stripe keys: defined in application.yml. For literal values, edit application.yml and replace
   # secret-key: ${STRIPE_SECRET_KEY:} with secret-key: sk_test_51H... (no ${}). application-local.yml
   # no longer overrides stripe, so application.yml values are used.
@@ -57,6 +55,7 @@ aether:
     process-url: ${AETHER_AGENT_PROCESS_URL:http://localhost:8055/api/v1/schema-mapper/process}
     # Tenant-Adaptive Agent for project pricing.
     tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:http://localhost:8055/api/v1/tenant-adaptive/process}
+    pricing-parse-url: ${AETHER_AGENT_PRICING_PARSE_URL:http://localhost:8055/api/v1/pricing-training/parse}
   pubsub:
     tenant-topic: ${AETHER_PUBSUB_TENANT_TOPIC:tenant-events}
     # Topic for PDF processing events (AI agent). Create in Pub/Sub emulator.

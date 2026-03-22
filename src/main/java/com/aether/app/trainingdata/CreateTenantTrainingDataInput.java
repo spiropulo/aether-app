@@ -6,6 +6,7 @@ public class CreateTenantTrainingDataInput {
 
     private String tenantId;
     private List<TrainingDataEntryInput> entries;
+    private List<PricingFactInput> pricingFacts;
     private String description;
 
     public String getTenantId() {
@@ -30,5 +31,13 @@ public class CreateTenantTrainingDataInput {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public List<PricingFactInput> getPricingFacts() {
+        return pricingFacts;
+    }
+
+    public void setPricingFacts(List<PricingFactInput> pricingFacts) {
+        this.pricingFacts = pricingFacts;
     }
 }

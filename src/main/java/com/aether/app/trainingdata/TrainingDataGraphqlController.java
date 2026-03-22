@@ -25,6 +25,11 @@ public class TrainingDataGraphqlController {
         return trainingDataService.parseEntries(td.getContent());
     }
 
+    @SchemaMapping(typeName = "TrainingData", field = "pricingFacts")
+    public List<PricingFact> trainingDataPricingFacts(TrainingData td) {
+        return trainingDataService.parsePricingFacts(td.getContent());
+    }
+
     @QueryMapping
     public Mono<PagedResult<TrainingData>> tenantTrainingData(@Argument String tenantId,
                                                                @Argument PageInput page,

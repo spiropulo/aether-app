@@ -1,5 +1,7 @@
 package com.aether.app.project;
 
+import java.util.List;
+
 public class UpdateProjectInput {
 
     private String name;
@@ -13,6 +15,8 @@ public class UpdateProjectInput {
     private String state;
     private String postalCode;
     private String country;
+    /** When non-null, replaces all project labor overrides (empty list clears). */
+    private List<LaborRateOverrideInput> laborRateOverrides;
 
     public String getName() {
         return name;
@@ -100,5 +104,13 @@ public class UpdateProjectInput {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public List<LaborRateOverrideInput> getLaborRateOverrides() {
+        return laborRateOverrides;
+    }
+
+    public void setLaborRateOverrides(List<LaborRateOverrideInput> laborRateOverrides) {
+        this.laborRateOverrides = laborRateOverrides;
     }
 }

@@ -1,5 +1,7 @@
 package com.aether.app.project;
 
+import java.util.List;
+
 public class CreateProjectInput {
 
     private String tenantId;
@@ -15,6 +17,7 @@ public class CreateProjectInput {
     private String state;
     private String postalCode;
     private String country;
+    private List<LaborRateOverrideInput> laborRateOverrides;
 
     public String getTenantId() {
         return tenantId;
@@ -118,5 +121,13 @@ public class CreateProjectInput {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public List<LaborRateOverrideInput> getLaborRateOverrides() {
+        return laborRateOverrides;
+    }
+
+    public void setLaborRateOverrides(List<LaborRateOverrideInput> laborRateOverrides) {
+        this.laborRateOverrides = laborRateOverrides;
     }
 }

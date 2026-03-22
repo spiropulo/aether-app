@@ -26,4 +26,9 @@ public class PricingRunGraphqlController {
     public Mono<Boolean> deletePricingRun(@Argument String id, @Argument String projectId, @Argument String tenantId) {
         return pricingRunService.delete(id, projectId, tenantId);
     }
+
+    @MutationMapping
+    public Mono<Integer> deleteAllPricingRunsForProject(@Argument String projectId, @Argument String tenantId) {
+        return pricingRunService.deleteAllForProject(projectId, tenantId);
+    }
 }

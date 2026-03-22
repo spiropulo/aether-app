@@ -2,19 +2,26 @@ package com.aether.app.project;
 
 import com.aether.app.common.PageInput;
 import com.aether.app.common.PagedResult;
+import com.aether.app.offer.OfferService;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final OfferService offerService;
 
-    public ProjectService(ProjectRepository projectRepository) {
+    public ProjectService(ProjectRepository projectRepository, OfferService offerService) {
         this.projectRepository = projectRepository;
+        this.offerService = offerService;
     }
 
     public Mono<PagedResult<Project>> getProjects(String tenantId, PageInput page) {
@@ -27,6 +34,32 @@ public class ProjectService {
                     int total = all.size();
                     var items = all.stream().skip(offset).limit(limit).collect(Collectors.toList());
                     return new PagedResult<>(items, total, limit, offset);
+                });
+    }
+
+    /**
+     * Projects in {@code tenantId} where {@code userProfileId} appears on at least one offer's assignee list.
+     */
+    public Mono<PagedResult<Project>> getProjectsForOfferAssignee(String tenantId, PageInput page, String userProfileId) {
+        int limit = PagedResult.effectiveLimit(page);
+        int offset = PagedResult.effectiveOffset(page);
+        return offerService.findDistinctProjectIdsForAssignee(tenantId, userProfileId)
+                .flatMap(allowed -> {
+                    if (allowed.isEmpty()) {
+                        return Mono.just(new PagedResult<>(List.of(), 0, limit, offset));
+                    }
+                    return projectRepository.findAllByTenantId(tenantId)
+                            .filter(p -> allowed.contains(p.getId()))
+                            .collectList()
+                            .map(list -> {
+                                list.sort(Comparator
+                                        .comparing(Project::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                                        .thenComparing(Project::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                                        .reversed());
+                                int total = list.size();
+                                var items = list.stream().skip(offset).limit(limit).collect(Collectors.toList());
+                                return new PagedResult<>(items, total, limit, offset);
+                            });
                 });
     }
 
@@ -49,6 +82,7 @@ public class ProjectService {
         project.setState(input.getState());
         project.setPostalCode(input.getPostalCode());
         project.setCountry(input.getCountry());
+        project.replaceLaborRateOverrides(toOverrideMap(input.getLaborRateOverrides()));
         Instant now = Instant.now();
         project.setCreatedAt(now);
         project.setUpdatedAt(now);
@@ -92,9 +126,26 @@ public class ProjectService {
                     if (input.getCountry() != null) {
                         existing.setCountry(input.getCountry());
                     }
+                    if (input.getLaborRateOverrides() != null) {
+                        existing.replaceLaborRateOverrides(toOverrideMap(input.getLaborRateOverrides()));
+                    }
                     existing.setUpdatedAt(Instant.now());
                     return projectRepository.save(existing);
                 });
+    }
+
+    private static Map<String, Double> toOverrideMap(List<LaborRateOverrideInput> list) {
+        if (list == null || list.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Double> m = new LinkedHashMap<>();
+        for (LaborRateOverrideInput o : list) {
+            if (o.getUserProfileId() != null && !o.getUserProfileId().isBlank()
+                    && o.getHourlyRate() != null && o.getHourlyRate() >= 0) {
+                m.put(o.getUserProfileId().trim(), o.getHourlyRate());
+            }
+        }
+        return m;
     }
 
     public Mono<Boolean> deleteProject(String id, String tenantId) {

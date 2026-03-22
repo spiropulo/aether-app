@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,6 +51,24 @@ public class OfferService {
         return offerRepository.findAllByProjectIdAndTenantId(projectId, tenantId)
                 .map(o -> o.getTotal() != null ? o.getTotal() : 0.0)
                 .reduce(0.0, (a, b) -> a + b);
+    }
+
+    /**
+     * Distinct project IDs in the tenant that have at least one offer listing {@code userProfileId} in {@code assigneeIds}.
+     */
+    public Mono<java.util.Set<String>> findDistinctProjectIdsForAssignee(String tenantId, String userProfileId) {
+        return offerRepository.findAllByTenantIdAndAssigneeIdsContaining(tenantId, userProfileId)
+                .map(Offer::getProjectId)
+                .collectList()
+                .map(HashSet::new);
+    }
+
+    public Mono<Boolean> isUserAssigneeOnProject(String tenantId, String projectId, String userProfileId) {
+        return offerRepository.findAllByProjectIdAndTenantId(projectId, tenantId)
+                .any(offer -> {
+                    List<String> ids = offer.getAssigneeIds();
+                    return ids != null && ids.contains(userProfileId);
+                });
     }
 
     public Mono<Offer> createOffer(CreateOfferInput input) {

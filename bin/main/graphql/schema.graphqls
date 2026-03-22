@@ -13,6 +13,13 @@ type Tenant {
   organizationName: String!
   email: String!
   displayName: String
+  phoneNumber: String
+  addressLine1: String
+  addressLine2: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
   status: TenantStatus!
   subscriptionPlan: String
   createdAt: String
@@ -31,13 +38,40 @@ input CreateTenantInput {
   email: String!
   displayName: String
   subscriptionPlan: String
+  phoneNumber: String
+  addressLine1: String
+  addressLine2: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
 }
 
 input UpdateTenantInput {
   organizationName: String
   displayName: String
+  email: String
   subscriptionPlan: String
   status: TenantStatus
+  phoneNumber: String
+  addressLine1: String
+  addressLine2: String
+  city: String
+  state: String
+  postalCode: String
+  country: String
+}
+
+# ─── Project labor overrides (Estimator Agent) ─────────────────────────────
+
+type LaborRateOverride {
+  userProfileId: ID!
+  hourlyRate: Float!
+}
+
+input LaborRateOverrideInput {
+  userProfileId: ID!
+  hourlyRate: Float!
 }
 
 # ─── Project ─────────────────────────────────────────────────────────────────
@@ -49,7 +83,7 @@ type Project {
   description: String
   startDate: String
   endDate: String
-  """User-defined status. Use suggestedProjectStatuses for common options, or any custom string."""
+  """Workflow status. Use suggestedProjectStatuses for the canonical list; other values may exist for legacy or system use (e.g. pricing)."""
   status: String
   """ID of the PDF upload record if this project was created from a PDF estimate."""
   sourcePdfUploadId: String
@@ -64,6 +98,8 @@ type Project {
   updatedAt: String
   """Sum of all offer totals in this project. Null if no offers or not yet computed."""
   total: Float
+  """Per–team-member hourly rate overrides for this project (Estimator Agent). Empty if none."""
+  laborRateOverrides: [LaborRateOverride!]!
 }
 
 type ProjectPage {
@@ -80,7 +116,7 @@ input CreateProjectInput {
   description: String
   startDate: String
   endDate: String
-  """Optional status. Use suggestedProjectStatuses for common options, or any custom string."""
+  """Optional status from suggestedProjectStatuses."""
   status: String
   """PDF upload record ID if this project is being created from a PDF estimate."""
   sourcePdfUploadId: String
@@ -91,6 +127,7 @@ input CreateProjectInput {
   state: String
   postalCode: String
   country: String
+  laborRateOverrides: [LaborRateOverrideInput!]
 }
 
 input UpdateProjectInput {
@@ -98,7 +135,7 @@ input UpdateProjectInput {
   description: String
   startDate: String
   endDate: String
-  """Status. Use suggestedProjectStatuses for common options, or any custom string."""
+  """Status from suggestedProjectStatuses when possible."""
   status: String
   """Project address for location-based pricing (Agentic Agents)."""
   addressLine1: String
@@ -107,6 +144,8 @@ input UpdateProjectInput {
   state: String
   postalCode: String
   country: String
+  """When set, replaces all labor rate overrides; pass [] to clear."""
+  laborRateOverrides: [LaborRateOverrideInput!]
 }
 
 # ─── Task ────────────────────────────────────────────────────────────────────
@@ -239,6 +278,8 @@ type UserProfile {
   updatedAt: String
   lastLoginAt: String
   lastLogoutAt: String
+  """Default hourly labor rate (USD) for estimation; project may override."""
+  hourlyLaborRate: Float
 }
 
 type UserProfilePage {
@@ -278,7 +319,7 @@ input RegisterInput {
   lastName: String
   displayName: String
   phoneNumber: String
-  """Defaults to MEMBER when omitted."""
+  """Ignored. Every account created via register is ADMIN (use addMember for other roles)."""
   role: UserRole
 }
 
@@ -297,6 +338,9 @@ input UpdateProfileInput {
   avatarUrl: String
   role: UserRole
   status: UserStatus
+  hourlyLaborRate: Float
+  """When true, clears hourlyLaborRate (ignored if hourlyLaborRate is also sent)."""
+  clearHourlyLaborRate: Boolean
 }
 
 input ChangePasswordInput {
@@ -313,55 +357,43 @@ input AddMemberInput {
   lastName: String
   displayName: String
   phoneNumber: String
-  """Defaults to MEMBER when omitted."""
+  """Defaults to MEMBER when omitted. If the tenant has no users yet, the new member is always ADMIN."""
   role: UserRole
+  hourlyLaborRate: Float
 }
 
 # ─── Training Data ───────────────────────────────────────────────────────────
 
-# ─── Pretrained Data (Global Catalog) ─────────────────────────────────────────
-
 """
-A system-managed, pre-built training dataset loaded from JSON files in training-data/ at startup.
-Title comes from metadata.agent_title; trainingContent is the full JSON payload.
-Tenants browse the catalog via pretrainCatalog and select entries to use as
-default training context for their domain or for a specific task.
-Agentic Agents fetch the selected entries before executing.
+A single key-value pair for custom training data.
+The key is often a human-readable description of what the value applies to; agents use it to match offer line items.
+It may also be a short technical identifier (e.g. wood_unit_cost) when using presets.
 """
-type PretrainData {
-  id: ID!
-  title: String!
-  trainingContent: String!
-  fileName: String!
-  createdAt: String
-  updatedAt: String
-}
-
-type PretrainDataPage {
-  items: [PretrainData!]!
-  total: Int!
-  limit: Int!
-  offset: Int!
-  hasNext: Boolean!
-}
-
-"""
-Records a tenant's selection of a PretrainData catalog entry.
-taskId is null for tenant-level selections (applies to all agent runs).
-When taskId is set, the selection applies only to that specific task.
-"""
-type PretrainSelection {
-  id: ID!
-  tenantId: String!
-  taskId: String
-  pretrainDataId: String!
-  createdAt: String
-}
-
-"""A single key-value pair for custom training data."""
 type TrainingDataEntry {
   key: String!
   value: String!
+}
+
+"""
+Structured pricing signal (natural language → validated fields). Used by agents instead of raw blobs.
+"""
+type PricingFact {
+  id: String!
+  projectType: String
+  material: String
+  """e.g. linear_foot, square_foot, each, hour, job, other"""
+  unit: String
+  priceMin: Float
+  priceMax: Float
+  pricePoint: Float
+  includesLabor: Boolean
+  condition: String
+  notes: String
+  """user_rule | parsed | project_history | benchmark"""
+  source: String
+  confidence: Float
+  basedOnCount: Int
+  observedAt: String
 }
 
 """
@@ -373,8 +405,10 @@ type TrainingData {
   id: ID!
   tenantId: String!
   projectId: String
-  """Key-value pairs. Use for pricing context."""
+  """Key-value pairs: keys are often descriptions the AI matches to offers; values are amounts or rates."""
   entries: [TrainingDataEntry!]!
+  """Structured facts extracted from guided input or completed jobs."""
+  pricingFacts: [PricingFact!]!
   description: String
   uploadedAt: String
   createdAt: String
@@ -389,26 +423,49 @@ type TrainingDataPage {
   hasNext: Boolean!
 }
 
+"""key: natural-language description or technical id; value: amount or text the agent should use."""
 input TrainingDataEntryInput {
   key: String!
   value: String!
 }
 
+input PricingFactInput {
+  id: String
+  projectType: String
+  material: String
+  unit: String
+  priceMin: Float
+  priceMax: Float
+  pricePoint: Float
+  includesLabor: Boolean
+  condition: String
+  notes: String
+  source: String
+  confidence: Float
+  basedOnCount: Int
+  observedAt: String
+}
+
 input CreateTenantTrainingDataInput {
   tenantId: String!
-  entries: [TrainingDataEntryInput!]!
+  """At least one of entries or pricingFacts must be non-empty."""
+  entries: [TrainingDataEntryInput!]
+  pricingFacts: [PricingFactInput!]
   description: String
 }
 
 input CreateProjectTrainingDataInput {
   tenantId: String!
   projectId: String!
-  entries: [TrainingDataEntryInput!]!
+  """At least one of entries or pricingFacts must be non-empty."""
+  entries: [TrainingDataEntryInput!]
+  pricingFacts: [PricingFactInput!]
   description: String
 }
 
 input UpdateTrainingDataInput {
   entries: [TrainingDataEntryInput!]
+  pricingFacts: [PricingFactInput!]
   description: String
 }
 
@@ -469,7 +526,9 @@ type Query {
   tenant(id: ID!, tenantId: String!): Tenant
 
   # Project
+  """When the request includes a valid Bearer JWT, non-admin users only receive projects where they are on an offer assignee list; admins see all projects in the tenant."""
   projects(tenantId: String!, page: PageInput): ProjectPage!
+  """Non-admins (with JWT) may only resolve a project if they are assigned on at least one offer in that project."""
   project(id: ID!, tenantId: String!): Project
   """Suggested status values for projects. UI can show these as select options; users may also use custom strings."""
   suggestedProjectStatuses: [String!]!
@@ -489,18 +548,6 @@ type Query {
   userProfiles(tenantId: String!, page: PageInput, search: String): UserProfilePage!
   """Fetch a single user profile by ID."""
   userProfile(id: ID!, tenantId: String!): UserProfile
-
-  # Pretrain Catalog (UI)
-  """Browse the global catalog of pre-built training datasets."""
-  pretrainCatalog(page: PageInput, search: String): PretrainDataPage!
-  """Fetch a single catalog entry by ID."""
-  pretrainEntry(id: ID!): PretrainData
-
-  # Pretrain Agent queries
-  """All pretrain catalog entries selected by a tenant (tenant-level). Used by the agent to load default pre-training context."""
-  tenantSelectedPretrainData(tenantId: String!): [PretrainData!]!
-  """All pretrain catalog entries selected for a specific task. Used by the agent for task-specific pre-training."""
-  taskSelectedPretrainData(tenantId: String!, taskId: String!): [PretrainData!]!
 
   # Training Data
   """All tenant-scope training data. Optionally filter by search term (matches content and description)."""
@@ -551,20 +598,12 @@ type Mutation {
   updateProfile(id: ID!, tenantId: String!, callerId: String!, input: UpdateProfileInput!): UserProfile!
   """Verify the current password then store a new BCrypt hash."""
   changePassword(id: ID!, tenantId: String!, input: ChangePasswordInput!): Boolean!
-  """Add a new member to an organization. Organization must exist. Returns the created user profile (member logs in separately)."""
-  addMember(organizationName: String!, input: AddMemberInput!): UserProfile!
+  """Add a new member to an organization. Caller must be an ADMIN for the same tenant. Organization must exist."""
+  addMember(callerId: ID!, tenantId: String!, organizationName: String!, input: AddMemberInput!): UserProfile!
   """Mark the user as logged out and record the logout timestamp."""
   logout(id: ID!, tenantId: String!): Boolean!
   """Permanently remove a user profile."""
   deleteProfile(id: ID!, tenantId: String!): Boolean!
-
-  # Pretrain Selections (UI)
-  """Select a catalog entry as the default pre-training context for a tenant."""
-  selectPretrainData(tenantId: String!, pretrainDataId: ID!): PretrainSelection!
-  """Select a catalog entry as the pre-training context for a specific task."""
-  selectPretrainDataForTask(tenantId: String!, taskId: String!, pretrainDataId: ID!): PretrainSelection!
-  """Remove a pretrain selection by its ID."""
-  deselectPretrainData(id: ID!, tenantId: String!): Boolean!
 
   # Training Data
   createTenantTrainingData(input: CreateTenantTrainingDataInput!): TrainingData!
@@ -579,4 +618,6 @@ type Mutation {
   # Pricing Runs
   """Delete a pricing run record. Requires projectId and tenantId for access control."""
   deletePricingRun(id: ID!, projectId: String!, tenantId: String!): Boolean!
+  """Delete every pricing run for this project. Returns how many were removed. Does not change offers."""
+  deleteAllPricingRunsForProject(projectId: String!, tenantId: String!): Int!
 }

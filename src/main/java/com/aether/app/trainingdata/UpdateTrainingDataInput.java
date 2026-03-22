@@ -5,6 +5,7 @@ import java.util.List;
 public class UpdateTrainingDataInput {
 
     private List<TrainingDataEntryInput> entries;
+    private List<PricingFactInput> pricingFacts;
     private String description;
 
     public List<TrainingDataEntryInput> getEntries() {
@@ -21,5 +22,13 @@ public class UpdateTrainingDataInput {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public List<PricingFactInput> getPricingFacts() {
+        return pricingFacts;
+    }
+
+    public void setPricingFacts(List<PricingFactInput> pricingFacts) {
+        this.pricingFacts = pricingFacts;
     }
 }

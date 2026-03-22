@@ -5,6 +5,8 @@ import com.google.cloud.spring.data.firestore.Document;
 import jakarta.validation.constraints.NotBlank;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Document(collectionName = "projects")
 public class Project {
@@ -31,6 +33,9 @@ public class Project {
     private String state;
     private String postalCode;
     private String country;
+
+    /** userProfileId → hourly rate override for this project (Estimator Agent). */
+    private Map<String, Double> laborRateOverrides;
 
     private Instant createdAt;
     private Instant updatedAt;
@@ -148,6 +153,23 @@ public class Project {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public Map<String, Double> getLaborRateOverrides() {
+        return laborRateOverrides;
+    }
+
+    public void setLaborRateOverrides(Map<String, Double> laborRateOverrides) {
+        this.laborRateOverrides = laborRateOverrides;
+    }
+
+    /** Defensive copy for mutation from GraphQL input. */
+    public void replaceLaborRateOverrides(Map<String, Double> next) {
+        if (next == null || next.isEmpty()) {
+            this.laborRateOverrides = null;
+        } else {
+            this.laborRateOverrides = new LinkedHashMap<>(next);
+        }
     }
 
     public Instant getCreatedAt() {

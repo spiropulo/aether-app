@@ -26,7 +26,7 @@ Use Docker for GCS and Pub/Sub emulators (Firestore can run via Firebase CLI or 
 # Start GCS + Pub/Sub emulators
 docker compose up -d
 
-# Create Pub/Sub topic and subscription (one-time, requires gcloud CLI)
+# Create Pub/Sub topics + estimate subscription (idempotent; requires gcloud CLI)
 ./scripts/init-pubsub.sh
 
 # Run the app
@@ -70,7 +70,7 @@ Key properties:
   - `spring.cloud.gcp.firestore.emulator.enabled=true`
   - `spring.cloud.gcp.firestore.host-port` – from `FIRESTORE_EMULATOR_HOST` or defaults to `localhost:8075`
 - Pub/Sub emulator (local profile):
-  - `spring.cloud.gcp.pubsub.emulator-host` – from `PUBSUB_EMULATOR_HOST` or defaults to `localhost:8085`
+  - `spring.cloud.gcp.pubsub.emulator-host` – from `PUBSUB_EMULATOR_HOST` or defaults to `127.0.0.1:8085` (IPv4; avoids Firebase/macOS `localhost` → `::1` issues)
 - GCS emulator (local profile):
   - `aether.storage.emulator-host` – from `STORAGE_EMULATOR_HOST` or defaults to `http://localhost:9195`
   - Start the fake-gcs-server with: `docker compose up -d fake-gcs`
@@ -100,11 +100,7 @@ Key properties:
   - `MAIL_USERNAME` and `MAIL_PASSWORD` (API key or SMTP credentials)
   - `AETHER_MAIL_FROM` (verified sender address)
 
-  Create topic and subscription in the Pub/Sub emulator:
-  ```bash
-  PUBSUB_EMULATOR_HOST=localhost:8085 gcloud pubsub topics create estimate-events --project=aether
-  PUBSUB_EMULATOR_HOST=localhost:8085 gcloud pubsub subscriptions create estimate-events-sub --topic=estimate-events --project=aether
-  ```
+  Prefer `./scripts/init-pubsub.sh` (idempotent; creates `tenant-events`, `estimate-events`, and `estimate-events-sub`; defaults to `PUBSUB_EMULATOR_HOST=127.0.0.1:8085`). Or run `gcloud` by hand with the same env and `--project` matching `GCP_PROJECT_ID` (default `aether`).
 
 ### Production deployment
 

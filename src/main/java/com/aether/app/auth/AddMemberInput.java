@@ -10,6 +10,7 @@ public class AddMemberInput {
     private String displayName;
     private String phoneNumber;
     private UserRole role;
+    private Double hourlyLaborRate;
 
     public String getUsername() {
         return username;
@@ -73,5 +74,13 @@ public class AddMemberInput {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public Double getHourlyLaborRate() {
+        return hourlyLaborRate;
+    }
+
+    public void setHourlyLaborRate(Double hourlyLaborRate) {
+        this.hourlyLaborRate = hourlyLaborRate;
     }
 }

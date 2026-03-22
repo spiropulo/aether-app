@@ -25,16 +25,13 @@ springdoc:
     enabled: true
 
 aether:
-  training-data:
-    # Directory containing .txt training files (relative to working dir). Seeded into Firestore on startup.
-    path: ${AETHER_TRAINING_DATA_PATH:training-data}
-    # When true (local profile): delete all pretrained data and re-seed on every startup.
-    reset-on-startup: ${AETHER_TRAINING_DATA_RESET_ON_STARTUP:false}
   agent:
     # Schema Mapper Agent base URL for PDF processing. When set, Pub/Sub listener forwards PDFs here.
     process-url: ${AETHER_AGENT_PROCESS_URL:}
     # Tenant-Adaptive Agent for project pricing (agentic pricing workflow).
     tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:}
+    # Aether AI: POST /api/v1/pricing-training/parse — NL → structured pricing facts JSON.
+    pricing-parse-url: ${AETHER_AGENT_PRICING_PARSE_URL:}
   pubsub:
     # Optional: emit tenant lifecycle events (TENANT_CREATED/UPDATED/DELETED)
     tenant-topic: ${AETHER_PUBSUB_TENANT_TOPIC:}

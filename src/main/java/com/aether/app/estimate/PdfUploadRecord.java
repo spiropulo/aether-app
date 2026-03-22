@@ -21,7 +21,7 @@ public class PdfUploadRecord {
     private Instant uploadedAt;
     /** Project ID (created before AI processing; scopes all mutations). */
     private String projectId;
-    /** JSON: training data used for this run (catalog + custom, for UI display). */
+    /** JSON: training data used for this run (custom entries, for UI display). */
     private String runContext;
     /** JSON: agent activity log (stages, timestamps, messages) for UI visibility. */
     private String agentActivityLog;

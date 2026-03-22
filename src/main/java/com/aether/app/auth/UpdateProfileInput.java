@@ -10,6 +10,9 @@ public class UpdateProfileInput {
     private String avatarUrl;
     private UserRole role;
     private UserStatus status;
+    private Double hourlyLaborRate;
+    /** When true, clears stored hourly labor rate (ignored if hourlyLaborRate is also set). */
+    private Boolean clearHourlyLaborRate;
 
     public String getEmail() {
         return email;
@@ -73,5 +76,21 @@ public class UpdateProfileInput {
 
     public void setStatus(UserStatus status) {
         this.status = status;
+    }
+
+    public Double getHourlyLaborRate() {
+        return hourlyLaborRate;
+    }
+
+    public void setHourlyLaborRate(Double hourlyLaborRate) {
+        this.hourlyLaborRate = hourlyLaborRate;
+    }
+
+    public Boolean getClearHourlyLaborRate() {
+        return clearHourlyLaborRate;
+    }
+
+    public void setClearHourlyLaborRate(Boolean clearHourlyLaborRate) {
+        this.clearHourlyLaborRate = clearHourlyLaborRate;
     }
 }

@@ -42,8 +42,8 @@ public class UserProfileService {
     }
 
     /**
-     * Resolves tenantId by organization name. If the organization does not exist,
-     * creates it automatically. Used during registration only.
+     * Resolves tenant by organization name. If the organization does not exist, creates it.
+     * Used during registration only.
      */
     private Mono<String> resolveOrCreateTenantIdForRegistration(String organizationName, String registrantEmail) {
         return tenantRepository.findByOrganizationName(organizationName)
@@ -111,7 +111,8 @@ public class UserProfileService {
                                                     profile.setLastName(input.getLastName());
                                                     profile.setDisplayName(input.getDisplayName());
                                                     profile.setPhoneNumber(input.getPhoneNumber());
-                                                    profile.setRole(input.getRole() != null ? input.getRole() : UserRole.MEMBER);
+                                                    // Register page: every new account from this mutation is an org admin.
+                                                    profile.setRole(UserRole.ADMIN);
                                                     profile.setStatus(UserStatus.ACTIVE);
                                                     Instant now = Instant.now();
                                                     profile.setCreatedAt(now);
@@ -124,36 +125,58 @@ public class UserProfileService {
                                 ));
     }
 
-    public Mono<UserProfile> addMember(String organizationName, AddMemberInput input) {
-        return resolveTenantIdFromOrganizationName(organizationName)
-                .flatMap(tenantId ->
-                        userProfileRepository.findByUsernameAndTenantId(input.getUsername(), tenantId)
-                                .flatMap(existing -> Mono.<UserProfile>error(
-                                        new IllegalArgumentException("Username '" + input.getUsername() + "' is already taken.")))
-                                .switchIfEmpty(
-                                        userProfileRepository.findByEmailAndTenantId(input.getEmail(), tenantId)
-                                                .flatMap(existing -> Mono.<UserProfile>error(
-                                                        new IllegalArgumentException("Email '" + input.getEmail() + "' is already registered.")))
-                                                .switchIfEmpty(Mono.defer(() -> {
-                                                    UserProfile profile = new UserProfile();
-                                                    profile.setTenantId(tenantId);
-                                                    profile.setOrganizationName(organizationName);
-                                                    profile.setUsername(input.getUsername());
-                                                    profile.setPasswordHash(passwordEncoder.encode(input.getPassword()));
-                                                    profile.setEmail(input.getEmail());
-                                                    profile.setFirstName(input.getFirstName());
-                                                    profile.setLastName(input.getLastName());
-                                                    profile.setDisplayName(input.getDisplayName());
-                                                    profile.setPhoneNumber(input.getPhoneNumber());
-                                                    profile.setRole(input.getRole() != null ? input.getRole() : UserRole.MEMBER);
-                                                    profile.setStatus(UserStatus.ACTIVE);
-                                                    profile.setLoggedIn(false);
-                                                    Instant now = Instant.now();
-                                                    profile.setCreatedAt(now);
-                                                    profile.setUpdatedAt(now);
-                                                    return userProfileRepository.save(profile);
-                                                }))
-                                ));
+    public Mono<UserProfile> addMember(String callerId, String tenantId, String organizationName, AddMemberInput input) {
+        return userProfileRepository.findByIdAndTenantId(callerId, tenantId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Caller profile not found.")))
+                .flatMap(caller -> {
+                    if (caller.getRole() != UserRole.ADMIN) {
+                        return Mono.error(new IllegalArgumentException("Only admins can add team members."));
+                    }
+                    return resolveTenantIdFromOrganizationName(organizationName)
+                            .flatMap(orgTenantId -> {
+                                if (!tenantId.equals(orgTenantId)) {
+                                    return Mono.error(new IllegalArgumentException(
+                                            "Organization does not match your workspace."));
+                                }
+                                return userProfileRepository.findByUsernameAndTenantId(input.getUsername(), orgTenantId)
+                                        .flatMap(existing -> Mono.<UserProfile>error(
+                                                new IllegalArgumentException("Username '" + input.getUsername() + "' is already taken.")))
+                                        .switchIfEmpty(
+                                                userProfileRepository.findByEmailAndTenantId(input.getEmail(), orgTenantId)
+                                                        .flatMap(existing -> Mono.<UserProfile>error(
+                                                                new IllegalArgumentException("Email '" + input.getEmail() + "' is already registered.")))
+                                                        .switchIfEmpty(Mono.defer(() ->
+                                                                userProfileRepository.findAllByTenantId(orgTenantId)
+                                                                        .count()
+                                                                        .flatMap(userCount -> {
+                                                                            UserProfile profile = new UserProfile();
+                                                                            profile.setTenantId(orgTenantId);
+                                                                            profile.setOrganizationName(organizationName);
+                                                                            profile.setUsername(input.getUsername());
+                                                                            profile.setPasswordHash(passwordEncoder.encode(input.getPassword()));
+                                                                            profile.setEmail(input.getEmail());
+                                                                            profile.setFirstName(input.getFirstName());
+                                                                            profile.setLastName(input.getLastName());
+                                                                            profile.setDisplayName(input.getDisplayName());
+                                                                            profile.setPhoneNumber(input.getPhoneNumber());
+                                                                            if (input.getHourlyLaborRate() != null) {
+                                                                                profile.setHourlyLaborRate(input.getHourlyLaborRate());
+                                                                            }
+                                                                            UserRole role = userCount == 0
+                                                                                    ? UserRole.ADMIN
+                                                                                    : (input.getRole() != null ? input.getRole() : UserRole.MEMBER);
+                                                                            profile.setRole(role);
+                                                                            profile.setStatus(UserStatus.ACTIVE);
+                                                                            profile.setLoggedIn(false);
+                                                                            Instant now = Instant.now();
+                                                                            profile.setCreatedAt(now);
+                                                                            profile.setUpdatedAt(now);
+                                                                            return userProfileRepository.save(profile);
+                                                                        })
+                                                        ))
+                                        );
+                            });
+                });
     }
 
     public Mono<AuthPayload> login(LoginInput input) {
@@ -204,6 +227,13 @@ public class UserProfileService {
                             }
                             if (input.getAvatarUrl() != null) {
                                 existing.setAvatarUrl(input.getAvatarUrl());
+                            }
+                            if (isEditingSelf || callerIsAdmin) {
+                                if (input.getHourlyLaborRate() != null) {
+                                    existing.setHourlyLaborRate(input.getHourlyLaborRate());
+                                } else if (Boolean.TRUE.equals(input.getClearHourlyLaborRate())) {
+                                    existing.setHourlyLaborRate(null);
+                                }
                             }
                             if (canUpdateRoleStatus && input.getRole() != null) {
                                 existing.setRole(input.getRole());

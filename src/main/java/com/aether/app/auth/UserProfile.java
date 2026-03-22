@@ -37,6 +37,9 @@ public class UserProfile {
     private String phoneNumber;
     private String avatarUrl;
 
+    /** Default hourly labor rate for estimation (USD). Project may override per member. */
+    private Double hourlyLaborRate;
+
     @NotNull
     private UserRole role = UserRole.MEMBER;
 
@@ -139,6 +142,14 @@ public class UserProfile {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public Double getHourlyLaborRate() {
+        return hourlyLaborRate;
+    }
+
+    public void setHourlyLaborRate(Double hourlyLaborRate) {
+        this.hourlyLaborRate = hourlyLaborRate;
     }
 
     public UserRole getRole() {
