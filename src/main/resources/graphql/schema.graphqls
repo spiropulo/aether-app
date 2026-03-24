@@ -22,6 +22,12 @@ type Tenant {
   country: String
   status: TenantStatus!
   subscriptionPlan: String
+  """IANA timezone for labor reporting (e.g. America/Los_Angeles)."""
+  laborTimezone: String
+  """Default workday start local time (HH:mm) for labor-hour estimates."""
+  laborWorkdayStart: String
+  """Default workday end local time (HH:mm) for labor-hour estimates."""
+  laborWorkdayEnd: String
   createdAt: String
   updatedAt: String
 }
@@ -45,6 +51,9 @@ input CreateTenantInput {
   state: String
   postalCode: String
   country: String
+  laborTimezone: String
+  laborWorkdayStart: String
+  laborWorkdayEnd: String
 }
 
 input UpdateTenantInput {
@@ -60,6 +69,9 @@ input UpdateTenantInput {
   state: String
   postalCode: String
   country: String
+  laborTimezone: String
+  laborWorkdayStart: String
+  laborWorkdayEnd: String
 }
 
 # ─── Project labor overrides (Estimator Agent) ─────────────────────────────
@@ -100,6 +112,10 @@ type Project {
   total: Float
   """Per–team-member hourly rate overrides for this project (Estimator Agent). Empty if none."""
   laborRateOverrides: [LaborRateOverride!]!
+  """Optional workday start (HH:mm) overriding tenant default for labor efficiency."""
+  laborWorkdayStart: String
+  """Optional workday end (HH:mm) overriding tenant default for labor efficiency."""
+  laborWorkdayEnd: String
 }
 
 type ProjectPage {
@@ -128,6 +144,8 @@ input CreateProjectInput {
   postalCode: String
   country: String
   laborRateOverrides: [LaborRateOverrideInput!]
+  laborWorkdayStart: String
+  laborWorkdayEnd: String
 }
 
 input UpdateProjectInput {
@@ -146,6 +164,8 @@ input UpdateProjectInput {
   country: String
   """When set, replaces all labor rate overrides; pass [] to clear."""
   laborRateOverrides: [LaborRateOverrideInput!]
+  laborWorkdayStart: String
+  laborWorkdayEnd: String
 }
 
 # ─── Task ────────────────────────────────────────────────────────────────────
@@ -165,6 +185,10 @@ type Task {
   endDate: String
   """Calendar display color (e.g. hex #3B82F6 or preset name)."""
   calendarColor: String
+  """
+  ISO dates (YYYY-MM-DD) within start–end removed from the calendar and from labor scheduled-day counts.
+  """
+  calendarExcludedDates: [String!]
   """
   Percentage of offers under this task marked work-complete (0–100).
   Null when the task has no offers.
@@ -191,6 +215,7 @@ input CreateTaskInput {
   startDate: String
   endDate: String
   calendarColor: String
+  calendarExcludedDates: [String!]
 }
 
 input UpdateTaskInput {
@@ -200,6 +225,8 @@ input UpdateTaskInput {
   startDate: String
   endDate: String
   calendarColor: String
+  """When set, replaces excluded calendar dates; use [] to clear."""
+  calendarExcludedDates: [String!]
 }
 
 # ─── Offer ────────────────────────────────────────────────────────────────────
@@ -226,6 +253,8 @@ type Offer {
   assigneeIds: [String!]
   """Set by an admin when the line item's work is finished."""
   workCompleted: Boolean!
+  """Instant when work was marked complete (for weekly labor reporting). Null if not complete."""
+  workCompletedAt: String
   createdAt: String
   updatedAt: String
 }
@@ -261,6 +290,64 @@ input UpdateOfferInput {
   duration: String
   assigneeIds: [String!]
   workCompleted: Boolean
+}
+
+# ─── Weekly labor efficiency (project) ───────────────────────────────────────
+
+enum WeekStartMode {
+  ISO_MONDAY
+  US_SUNDAY
+}
+
+"""
+Weekly labor efficiency from task calendar dates and work completions.
+Planned = overlap of task start/end with the week: each calendar day in range × hours per workday (minus per-day task exclusions).
+Actual = per task, max over lines completed in the week of calendar days from task start through that completion × hours per workday (same exclusions).
+"""
+type WeeklyLaborEfficiencyReport {
+  """First day of the selected week (YYYY-MM-DD) in the reporting timezone."""
+  weekStart: String!
+  """Last day of the selected week inclusive (YYYY-MM-DD)."""
+  weekEnd: String!
+  weekLabel: String!
+  """IANA timezone used for week boundaries (e.g. America/Los_Angeles)."""
+  timezone: String!
+  """True when workspace timezone and default workday window are set and valid."""
+  laborConfigComplete: Boolean!
+  """Human-readable notice when defaults or fallbacks are used."""
+  laborConfigWarning: String
+  plannedHours: Float!
+  actualHours: Float!
+  """
+  Aggregate planned ÷ actual × 100 for the selected week when both totals are positive.
+  Over 100% means less time was used than planned.
+  """
+  laborEfficiencyPercent: Float
+  completedOfferLines: Int!
+  detailRows: [WeeklyLaborEfficiencyDetailRow!]!
+  """Eight consecutive weeks ending with the selected week (oldest first)."""
+  chartWeeks: [WeeklyLaborChartWeek!]!
+}
+
+type WeeklyLaborEfficiencyDetailRow {
+  taskId: String!
+  taskName: String!
+  offerId: String!
+  offerName: String!
+  assigneeIds: [String!]!
+  plannedHours: Float!
+  actualHours: Float!
+  laborEfficiencyPercent: Float
+  workCompletedAt: String
+}
+
+type WeeklyLaborChartWeek {
+  weekStart: String!
+  weekEnd: String!
+  weekLabel: String!
+  plannedHours: Float!
+  actualHours: Float!
+  laborEfficiencyPercent: Float
 }
 
 # ─── Auth / User Profile ─────────────────────────────────────────────────────
@@ -585,6 +672,22 @@ type Query {
   # Project Email History
   """All emails sent for a project, newest first."""
   projectEmails(projectId: String!, tenantId: String!): [ProjectEmail!]!
+
+  """
+  Weekly labor efficiency for a project from offer lines completed in the selected week
+  ({workCompletedAt} in range). Week boundaries use the tenant/project labor timezone.
+  Includes many trailing weeks in chartWeeks (ending at the selected week) for scrolling charts in the UI.
+  Optional filters: assignee (offer assignee list must include id), task (offer task id).
+  """
+  weeklyLaborEfficiency(
+    projectId: String!
+    tenantId: String!
+    """Any date (YYYY-MM-DD) that falls in the week to report."""
+    weekContainingDate: String!
+    weekStartMode: WeekStartMode!
+    assigneeId: String
+    taskId: String
+  ): WeeklyLaborEfficiencyReport!
 
   # Pricing Runs (agentic reports)
   """All pricing runs for a project, newest first. Shows what the AI agent did."""

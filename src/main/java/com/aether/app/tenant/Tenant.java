@@ -41,6 +41,15 @@ public class Tenant {
     private String postalCode;
     private String country;
 
+    /** IANA timezone for labor reporting and workday interpretation (e.g. America/Los_Angeles). */
+    private String laborTimezone;
+
+    /** Default workday start local time (HH:mm) for labor-hour estimates. */
+    private String laborWorkdayStart;
+
+    /** Default workday end local time (HH:mm) for labor-hour estimates. */
+    private String laborWorkdayEnd;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -157,6 +166,30 @@ public class Tenant {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public String getLaborTimezone() {
+        return laborTimezone;
+    }
+
+    public void setLaborTimezone(String laborTimezone) {
+        this.laborTimezone = laborTimezone;
+    }
+
+    public String getLaborWorkdayStart() {
+        return laborWorkdayStart;
+    }
+
+    public void setLaborWorkdayStart(String laborWorkdayStart) {
+        this.laborWorkdayStart = laborWorkdayStart;
+    }
+
+    public String getLaborWorkdayEnd() {
+        return laborWorkdayEnd;
+    }
+
+    public void setLaborWorkdayEnd(String laborWorkdayEnd) {
+        this.laborWorkdayEnd = laborWorkdayEnd;
     }
 
     public Instant getCreatedAt() {

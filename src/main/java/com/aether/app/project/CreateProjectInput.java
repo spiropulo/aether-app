@@ -18,6 +18,8 @@ public class CreateProjectInput {
     private String postalCode;
     private String country;
     private List<LaborRateOverrideInput> laborRateOverrides;
+    private String laborWorkdayStart;
+    private String laborWorkdayEnd;
 
     public String getTenantId() {
         return tenantId;
@@ -129,5 +131,21 @@ public class CreateProjectInput {
 
     public void setLaborRateOverrides(List<LaborRateOverrideInput> laborRateOverrides) {
         this.laborRateOverrides = laborRateOverrides;
+    }
+
+    public String getLaborWorkdayStart() {
+        return laborWorkdayStart;
+    }
+
+    public void setLaborWorkdayStart(String laborWorkdayStart) {
+        this.laborWorkdayStart = laborWorkdayStart;
+    }
+
+    public String getLaborWorkdayEnd() {
+        return laborWorkdayEnd;
+    }
+
+    public void setLaborWorkdayEnd(String laborWorkdayEnd) {
+        this.laborWorkdayEnd = laborWorkdayEnd;
     }
 }

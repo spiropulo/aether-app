@@ -12,6 +12,7 @@ public class CreateTaskInput {
     private String startDate;
     private String endDate;
     private String calendarColor;
+    private List<String> calendarExcludedDates;
 
     public String getTenantId() {
         return tenantId;
@@ -75,5 +76,13 @@ public class CreateTaskInput {
 
     public void setCalendarColor(String calendarColor) {
         this.calendarColor = calendarColor;
+    }
+
+    public List<String> getCalendarExcludedDates() {
+        return calendarExcludedDates;
+    }
+
+    public void setCalendarExcludedDates(List<String> calendarExcludedDates) {
+        this.calendarExcludedDates = calendarExcludedDates;
     }
 }

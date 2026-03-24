@@ -83,6 +83,8 @@ public class ProjectService {
         project.setPostalCode(input.getPostalCode());
         project.setCountry(input.getCountry());
         project.replaceLaborRateOverrides(toOverrideMap(input.getLaborRateOverrides()));
+        project.setLaborWorkdayStart(blankToNull(input.getLaborWorkdayStart()));
+        project.setLaborWorkdayEnd(blankToNull(input.getLaborWorkdayEnd()));
         Instant now = Instant.now();
         project.setCreatedAt(now);
         project.setUpdatedAt(now);
@@ -129,6 +131,12 @@ public class ProjectService {
                     if (input.getLaborRateOverrides() != null) {
                         existing.replaceLaborRateOverrides(toOverrideMap(input.getLaborRateOverrides()));
                     }
+                    if (input.getLaborWorkdayStart() != null) {
+                        existing.setLaborWorkdayStart(blankToNull(input.getLaborWorkdayStart()));
+                    }
+                    if (input.getLaborWorkdayEnd() != null) {
+                        existing.setLaborWorkdayEnd(blankToNull(input.getLaborWorkdayEnd()));
+                    }
                     existing.setUpdatedAt(Instant.now());
                     return projectRepository.save(existing);
                 });
@@ -172,6 +180,13 @@ public class ProjectService {
                     existing.setUpdatedAt(Instant.now());
                     return projectRepository.save(existing);
                 });
+    }
+
+    private static String blankToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return s.trim();
     }
 
     public Mono<Boolean> deleteProject(String id, String tenantId) {

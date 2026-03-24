@@ -85,9 +85,11 @@ public class OfferService {
         offer.setUnitCost(input.getUnitCost());
         offer.setDuration(input.getDuration());
         offer.setAssigneeIds(input.getAssigneeIds());
-        offer.setWorkCompleted(Boolean.TRUE.equals(input.getWorkCompleted()));
-        offer.setTotal(computeTotal(input.getQuantity(), input.getUnitCost()));
+        boolean completed = Boolean.TRUE.equals(input.getWorkCompleted());
+        offer.setWorkCompleted(completed);
         Instant now = Instant.now();
+        offer.setWorkCompletedAt(completed ? now : null);
+        offer.setTotal(computeTotal(input.getQuantity(), input.getUnitCost()));
         offer.setCreatedAt(now);
         offer.setUpdatedAt(now);
 
@@ -127,7 +129,13 @@ public class OfferService {
                         existing.setAssigneeIds(input.getAssigneeIds());
                     }
                     if (input.getWorkCompleted() != null) {
-                        existing.setWorkCompleted(input.getWorkCompleted());
+                        boolean newVal = input.getWorkCompleted();
+                        if (newVal && !existing.isWorkCompleted()) {
+                            existing.setWorkCompletedAt(Instant.now());
+                        } else if (!newVal) {
+                            existing.setWorkCompletedAt(null);
+                        }
+                        existing.setWorkCompleted(newVal);
                     }
                     existing.setTotal(computeTotal(existing.getQuantity(), existing.getUnitCost()));
                     existing.setUpdatedAt(Instant.now());

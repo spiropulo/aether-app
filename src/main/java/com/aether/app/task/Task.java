@@ -35,6 +35,12 @@ public class Task {
     /** Calendar display color (hex or preset name). */
     private String calendarColor;
 
+    /**
+     * ISO dates (YYYY-MM-DD) within {@link #startDate}–{@link #endDate} excluded from the calendar
+     * and from labor scheduled-day counts (planned and actual efficiency).
+     */
+    private java.util.List<String> calendarExcludedDates;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -111,6 +117,14 @@ public class Task {
 
     public void setCalendarColor(String calendarColor) {
         this.calendarColor = calendarColor;
+    }
+
+    public java.util.List<String> getCalendarExcludedDates() {
+        return calendarExcludedDates;
+    }
+
+    public void setCalendarExcludedDates(java.util.List<String> calendarExcludedDates) {
+        this.calendarExcludedDates = calendarExcludedDates;
     }
 
     public Instant getCreatedAt() {

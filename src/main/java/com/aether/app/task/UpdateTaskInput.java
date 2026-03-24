@@ -10,6 +10,7 @@ public class UpdateTaskInput {
     private String startDate;
     private String endDate;
     private String calendarColor;
+    private List<String> calendarExcludedDates;
 
     public String getName() {
         return name;
@@ -57,5 +58,13 @@ public class UpdateTaskInput {
 
     public void setCalendarColor(String calendarColor) {
         this.calendarColor = calendarColor;
+    }
+
+    public List<String> getCalendarExcludedDates() {
+        return calendarExcludedDates;
+    }
+
+    public void setCalendarExcludedDates(List<String> calendarExcludedDates) {
+        this.calendarExcludedDates = calendarExcludedDates;
     }
 }

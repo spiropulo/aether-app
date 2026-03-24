@@ -2,10 +2,14 @@ package com.aether.app.task;
 
 import com.aether.app.common.PageInput;
 import com.aether.app.common.PagedResult;
+import com.aether.app.labor.LaborEfficiencyCalendar;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,6 +60,8 @@ public class TaskService {
                     task.setStartDate(input.getStartDate());
                     task.setEndDate(input.getEndDate());
                     task.setCalendarColor(input.getCalendarColor());
+                    task.setCalendarExcludedDates(sanitizeCalendarExcludedDates(
+                            input.getStartDate(), input.getEndDate(), input.getCalendarExcludedDates()));
                     Instant now = Instant.now();
                     task.setCreatedAt(now);
                     task.setUpdatedAt(now);
@@ -94,16 +100,59 @@ public class TaskService {
         if (input.getAssigneeIds() != null) {
             existing.setAssigneeIds(input.getAssigneeIds());
         }
+        boolean startOrEndChanged = false;
         if (input.getStartDate() != null) {
             existing.setStartDate(input.getStartDate());
+            startOrEndChanged = true;
         }
         if (input.getEndDate() != null) {
             existing.setEndDate(input.getEndDate());
+            startOrEndChanged = true;
         }
         if (input.getCalendarColor() != null) {
             existing.setCalendarColor(input.getCalendarColor());
         }
+        if (input.getCalendarExcludedDates() != null) {
+            existing.setCalendarExcludedDates(sanitizeCalendarExcludedDates(
+                    existing.getStartDate(), existing.getEndDate(), input.getCalendarExcludedDates()));
+        } else if (startOrEndChanged) {
+            existing.setCalendarExcludedDates(sanitizeCalendarExcludedDates(
+                    existing.getStartDate(), existing.getEndDate(), existing.getCalendarExcludedDates()));
+        }
         existing.setUpdatedAt(Instant.now());
+    }
+
+    /**
+     * Keeps only ISO dates that fall within the task span (inclusive). Null or empty → null (cleared).
+     */
+    static List<String> sanitizeCalendarExcludedDates(String startIso, String endIso, List<String> raw) {
+        if (raw == null) {
+            return null;
+        }
+        LocalDate ts = LaborEfficiencyCalendar.parseIsoDate(startIso);
+        LocalDate te = LaborEfficiencyCalendar.parseIsoDate(endIso);
+        if (ts == null || te == null) {
+            return null;
+        }
+        LocalDate rangeStart = ts;
+        LocalDate rangeEnd = te;
+        if (rangeEnd.isBefore(rangeStart)) {
+            LocalDate tmp = rangeStart;
+            rangeStart = rangeEnd;
+            rangeEnd = tmp;
+        }
+        List<String> out = new ArrayList<>();
+        for (String s : raw) {
+            if (s == null || s.isBlank()) {
+                continue;
+            }
+            String t = s.trim();
+            LocalDate d = LaborEfficiencyCalendar.parseIsoDate(t);
+            if (d != null && !d.isBefore(rangeStart) && !d.isAfter(rangeEnd)) {
+                out.add(t);
+            }
+        }
+        return out.isEmpty() ? null : out;
     }
 
     public Mono<Boolean> deleteTask(String id, String tenantId, String projectId) {

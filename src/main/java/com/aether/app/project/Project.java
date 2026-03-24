@@ -37,6 +37,12 @@ public class Project {
     /** userProfileId → hourly rate override for this project (Estimator Agent). */
     private Map<String, Double> laborRateOverrides;
 
+    /** Optional override of tenant default workday start (HH:mm) for labor efficiency on this project. */
+    private String laborWorkdayStart;
+
+    /** Optional override of tenant default workday end (HH:mm) for labor efficiency on this project. */
+    private String laborWorkdayEnd;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -170,6 +176,22 @@ public class Project {
         } else {
             this.laborRateOverrides = new LinkedHashMap<>(next);
         }
+    }
+
+    public String getLaborWorkdayStart() {
+        return laborWorkdayStart;
+    }
+
+    public void setLaborWorkdayStart(String laborWorkdayStart) {
+        this.laborWorkdayStart = laborWorkdayStart;
+    }
+
+    public String getLaborWorkdayEnd() {
+        return laborWorkdayEnd;
+    }
+
+    public void setLaborWorkdayEnd(String laborWorkdayEnd) {
+        this.laborWorkdayEnd = laborWorkdayEnd;
     }
 
     public Instant getCreatedAt() {

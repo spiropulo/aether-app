@@ -37,6 +37,9 @@ public class Offer {
     /** When true, an admin has marked this line item's work as complete. */
     private boolean workCompleted;
 
+    /** Wall-clock instant when {@link #workCompleted} was set true (audit for weekly labor reports). */
+    private Instant workCompletedAt;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -145,6 +148,14 @@ public class Offer {
 
     public void setWorkCompleted(boolean workCompleted) {
         this.workCompleted = workCompleted;
+    }
+
+    public Instant getWorkCompletedAt() {
+        return workCompletedAt;
+    }
+
+    public void setWorkCompletedAt(Instant workCompletedAt) {
+        this.workCompletedAt = workCompletedAt;
     }
 
     public Instant getCreatedAt() {

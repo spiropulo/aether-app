@@ -14,6 +14,9 @@ public class UpdateTenantInput {
     private String state;
     private String postalCode;
     private String country;
+    private String laborTimezone;
+    private String laborWorkdayStart;
+    private String laborWorkdayEnd;
 
     public String getOrganizationName() {
         return organizationName;
@@ -109,5 +112,29 @@ public class UpdateTenantInput {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public String getLaborTimezone() {
+        return laborTimezone;
+    }
+
+    public void setLaborTimezone(String laborTimezone) {
+        this.laborTimezone = laborTimezone;
+    }
+
+    public String getLaborWorkdayStart() {
+        return laborWorkdayStart;
+    }
+
+    public void setLaborWorkdayStart(String laborWorkdayStart) {
+        this.laborWorkdayStart = laborWorkdayStart;
+    }
+
+    public String getLaborWorkdayEnd() {
+        return laborWorkdayEnd;
+    }
+
+    public void setLaborWorkdayEnd(String laborWorkdayEnd) {
+        this.laborWorkdayEnd = laborWorkdayEnd;
     }
 }

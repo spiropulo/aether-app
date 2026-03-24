@@ -59,6 +59,9 @@ public class TenantService {
         tenant.setState(input.getState());
         tenant.setPostalCode(input.getPostalCode());
         tenant.setCountry(input.getCountry());
+        tenant.setLaborTimezone(blankToNull(input.getLaborTimezone()));
+        tenant.setLaborWorkdayStart(blankToNull(input.getLaborWorkdayStart()));
+        tenant.setLaborWorkdayEnd(blankToNull(input.getLaborWorkdayEnd()));
         tenant.setStatus(TenantStatus.ACTIVE);
         Instant now = Instant.now();
         tenant.setCreatedAt(now);
@@ -113,15 +116,52 @@ public class TenantService {
                     if (input.getCountry() != null) {
                         existing.setCountry(blankToNull(input.getCountry()));
                     }
+                    if (input.getLaborTimezone() != null) {
+                        existing.setLaborTimezone(blankToNull(input.getLaborTimezone()));
+                    }
+                    if (input.getLaborWorkdayStart() != null) {
+                        existing.setLaborWorkdayStart(blankToNull(input.getLaborWorkdayStart()));
+                    }
+                    if (input.getLaborWorkdayEnd() != null) {
+                        existing.setLaborWorkdayEnd(blankToNull(input.getLaborWorkdayEnd()));
+                    }
                     existing.setUpdatedAt(Instant.now());
-                    requireWorkspaceContact(existing);
+                    if (!isLaborOnlyTenantUpdate(input)) {
+                        requireWorkspaceContact(existing);
+                    }
                     return tenantRepository.save(existing)
                             .doOnSuccess(saved -> publishEvent("TENANT_UPDATED", saved));
                 });
     }
 
     /**
-     * Every workspace must have a company phone and a minimal business address after any update.
+     * True when the client only sends labor calendar fields (timezone / workday window). Those saves are allowed
+     * even if company phone and address are still missing; other updates still require a complete workspace profile.
+     */
+    private static boolean isLaborOnlyTenantUpdate(UpdateTenantInput input) {
+        boolean anyLabor = input.getLaborTimezone() != null
+                || input.getLaborWorkdayStart() != null
+                || input.getLaborWorkdayEnd() != null;
+        if (!anyLabor) {
+            return false;
+        }
+        return input.getOrganizationName() == null
+                && input.getDisplayName() == null
+                && input.getEmail() == null
+                && input.getSubscriptionPlan() == null
+                && input.getStatus() == null
+                && input.getPhoneNumber() == null
+                && input.getAddressLine1() == null
+                && input.getAddressLine2() == null
+                && input.getCity() == null
+                && input.getState() == null
+                && input.getPostalCode() == null
+                && input.getCountry() == null;
+    }
+
+    /**
+     * Every workspace must have a company phone and a minimal business address after any update
+     * that is not {@linkplain #isLaborOnlyTenantUpdate(UpdateTenantInput) labor-only}.
      */
     private static void requireWorkspaceContact(Tenant t) {
         if (isBlank(t.getPhoneNumber())

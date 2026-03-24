@@ -17,6 +17,8 @@ public class UpdateProjectInput {
     private String country;
     /** When non-null, replaces all project labor overrides (empty list clears). */
     private List<LaborRateOverrideInput> laborRateOverrides;
+    private String laborWorkdayStart;
+    private String laborWorkdayEnd;
 
     public String getName() {
         return name;
@@ -112,5 +114,21 @@ public class UpdateProjectInput {
 
     public void setLaborRateOverrides(List<LaborRateOverrideInput> laborRateOverrides) {
         this.laborRateOverrides = laborRateOverrides;
+    }
+
+    public String getLaborWorkdayStart() {
+        return laborWorkdayStart;
+    }
+
+    public void setLaborWorkdayStart(String laborWorkdayStart) {
+        this.laborWorkdayStart = laborWorkdayStart;
+    }
+
+    public String getLaborWorkdayEnd() {
+        return laborWorkdayEnd;
+    }
+
+    public void setLaborWorkdayEnd(String laborWorkdayEnd) {
+        this.laborWorkdayEnd = laborWorkdayEnd;
     }
 }
