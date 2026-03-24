@@ -48,7 +48,7 @@ public class EstimatePubSubListener {
     @EventListener(ApplicationReadyEvent.class)
     public void subscribe() {
         if (!agentClient.isConfigured()) {
-            log.warn("aether.agent.process-url not configured — skipping Pub/Sub subscription");
+            log.warn("aether.agent.project-pdf-sync-url is not configured — skipping Pub/Sub subscription for estimate processing");
             return;
         }
         log.info("Subscribing to Pub/Sub subscription {} for estimate processing", subscriptionId);
@@ -79,7 +79,7 @@ public class EstimatePubSubListener {
         log.info("Processing estimate event: recordId={}, projectId={}, gcsPath={}", event.recordId(), projectId, event.gcsPath());
 
         if (projectId == null) {
-            log.error("Estimate event {} has no projectId. Aether AI requires project_id. Skipping.", event.recordId());
+            log.error("Estimate event {} has no projectId. Skipping.", event.recordId());
             return estimateService.updateStatus(event.recordId(), event.tenantId(), UploadStatus.FAILED).then();
         }
 
@@ -87,8 +87,15 @@ public class EstimatePubSubListener {
                 .then(trainingContextService.getRunContextForDisplay(event.tenantId())
                         .flatMap(runContext -> estimateService.updateRunContext(event.recordId(), event.tenantId(), runContext)))
                 .then(storageService.download(event.gcsPath()))
-                .flatMap(pdfBytes -> agentClient.processPdf(
-                        pdfBytes, event.fileName(), event.tenantId(), projectId))
+                .flatMap(pdfBytes -> {
+                    if (!agentClient.isConfigured()) {
+                        log.error("Project PDF sync agent URL not configured; record {}", event.recordId());
+                        return Mono.error(new IllegalStateException(
+                                "Project PDF sync agent URL not configured. Set aether.agent.project-pdf-sync-url "
+                                        + "(e.g. http://localhost:8055/api/v1/project-pdf-sync/process) or env AETHER_AGENT_PROJECT_PDF_SYNC_URL."));
+                    }
+                    return agentClient.processProjectPdfSync(pdfBytes, event.fileName(), event.tenantId(), projectId);
+                })
                 .flatMap(agentResponseJson -> {
                     String agentActivityLog = extractAgentActivityLog(agentResponseJson);
                     return estimateService.updateAgentActivityLog(event.recordId(), event.tenantId(), agentActivityLog)

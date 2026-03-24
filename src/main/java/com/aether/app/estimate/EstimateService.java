@@ -14,7 +14,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -116,22 +119,74 @@ public class EstimateService {
                 });
     }
 
+    /**
+     * Upload a PDF and associate it with an existing project. Queues the Project PDF Sync agent.
+     */
+    public Mono<PdfUploadAcknowledgment> processForExistingProject(String projectId,
+                                                                   byte[] fileBytes,
+                                                                   String fileName,
+                                                                   String contentType,
+                                                                   String tenantId,
+                                                                   String uploadedBy) {
+        String effectiveTenant = tenantId != null && !tenantId.isBlank() ? tenantId : "default";
+        return projectService.getProject(projectId, effectiveTenant)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Project not found or access denied.")))
+                .then(Mono.defer(() -> uploadRepository.findByTenantIdAndFileNameAndProjectId(effectiveTenant, fileName, projectId)
+                        .hasElements()
+                        .flatMap(exists -> {
+                            if (Boolean.TRUE.equals(exists)) {
+                                return Mono.<PdfUploadAcknowledgment>error(
+                                        DuplicateFileNameException.alreadyImportedForProject(fileName));
+                            }
+                            String uploadId = UUID.randomUUID().toString();
+                            String objectName = estimateFolder + "/" + uploadId + "/" + sanitizeFileName(fileName);
+                            Instant now = Instant.now();
+                            return storageService.upload(objectName, fileBytes, contentType)
+                                    .flatMap(gcsPath -> {
+                                        PdfUploadRecord record = new PdfUploadRecord();
+                                        record.setId(uploadId);
+                                        record.setTenantId(effectiveTenant);
+                                        record.setUploadedBy(uploadedBy != null && !uploadedBy.isBlank() ? uploadedBy : effectiveTenant);
+                                        record.setFileName(fileName);
+                                        record.setGcsPath(gcsPath);
+                                        record.setContentType(contentType);
+                                        record.setFileSizeBytes(fileBytes.length);
+                                        record.setStatus(UploadStatus.PENDING);
+                                        record.setUploadedAt(now);
+                                        record.setProjectId(projectId);
+                                        return uploadRepository.save(record);
+                                    })
+                                    .flatMap(record -> projectService.setSourcePdfUploadId(projectId, effectiveTenant, record.getId())
+                                            .thenReturn(record))
+                                    .doOnSuccess(this::publishProcessingEvent)
+                                    .map(record -> new PdfUploadAcknowledgment(
+                                            "accepted",
+                                            "Your PDF is queued to import into this project.",
+                                            record.getId(),
+                                            record.getTenantId(),
+                                            record.getFileName(),
+                                            record.getFileSizeBytes(),
+                                            record.getGcsPath(),
+                                            record.getUploadedAt()
+                                    ));
+                        })));
+    }
+
     private void publishProcessingEvent(PdfUploadRecord record) {
         if (estimateTopic == null || estimateTopic.isBlank()) {
             log.warn("aether.pubsub.estimate-topic is not configured — skipping Pub/Sub publish for record {}", record.getId());
             return;
         }
         try {
-            String payload = objectMapper.writeValueAsString(Map.of(
-                    "recordId", record.getId(),
-                    "tenantId", record.getTenantId(),
-                    "projectId", record.getProjectId(),
-                    "fileName", record.getFileName(),
-                    "gcsPath", record.getGcsPath(),
-                    "uploadedAt", record.getUploadedAt().toString(),
-                    "uploadedBy", record.getUploadedBy()
-            ));
-            pubSubTemplate.publish(estimateTopic, payload);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("recordId", record.getId());
+            payload.put("tenantId", record.getTenantId());
+            payload.put("projectId", record.getProjectId());
+            payload.put("fileName", record.getFileName());
+            payload.put("gcsPath", record.getGcsPath());
+            payload.put("uploadedAt", record.getUploadedAt().toString());
+            payload.put("uploadedBy", record.getUploadedBy());
+            pubSubTemplate.publish(estimateTopic, objectMapper.writeValueAsString(payload));
             log.info("Published estimate processing event for record {} to topic {}", record.getId(), estimateTopic);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize Pub/Sub payload for record {}", record.getId(), e);
@@ -181,6 +236,53 @@ public class EstimateService {
 
     public Flux<PdfUploadRecord> listByTenant(String tenantId) {
         return uploadRepository.findAllByTenantId(tenantId);
+    }
+
+    /** PDFs uploaded for a specific project, newest first. */
+    public Mono<List<PdfUploadRecord>> listUploadsByProjectSorted(String tenantId, String projectId) {
+        return uploadRepository.findByTenantIdAndProjectId(tenantId, projectId)
+                .collectList()
+                .map(this::sortUploadsNewestFirst);
+    }
+
+    private List<PdfUploadRecord> sortUploadsNewestFirst(List<PdfUploadRecord> all) {
+        all.sort((a, b) -> {
+            if (a.getUploadedAt() == null) {
+                return 1;
+            }
+            if (b.getUploadedAt() == null) {
+                return -1;
+            }
+            return b.getUploadedAt().compareTo(a.getUploadedAt());
+        });
+        return all;
+    }
+
+    /**
+     * Deletes upload metadata and GCS object. When {@code requiredProjectIdOrNull} is set, the record must belong to that project.
+     * Clears {@link com.aether.app.project.Project#getSourcePdfUploadId()} when it matches.
+     */
+    public Mono<Void> deleteUpload(String uploadId, String tenantId, String requiredProjectIdOrNull) {
+        return uploadRepository.findByIdAndTenantId(uploadId, tenantId)
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Upload not found")))
+                .flatMap(record -> {
+                    if (requiredProjectIdOrNull != null) {
+                        String pid = record.getProjectId();
+                        if (pid == null || !requiredProjectIdOrNull.equals(pid)) {
+                            return Mono.error(new NoSuchElementException("Upload not found"));
+                        }
+                    }
+                    String projectIdForClear = record.getProjectId();
+                    return storageService.deleteObject(record.getGcsPath())
+                            .onErrorResume(ex -> {
+                                log.warn("GCS delete failed for {}: {}", record.getGcsPath(), ex.toString());
+                                return Mono.empty();
+                            })
+                            .then(uploadRepository.delete(record))
+                            .then(Mono.defer(() -> projectIdForClear != null
+                                    ? projectService.clearSourcePdfUploadIfMatches(projectIdForClear, tenantId, uploadId)
+                                    : Mono.empty()));
+                });
     }
 
     public Mono<PdfUploadRecord> getUploadRecord(String recordId, String tenantId) {

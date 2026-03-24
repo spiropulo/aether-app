@@ -40,7 +40,7 @@ aether:
     enabled: ${AETHER_MAIL_ENABLED:false}
     from: ${AETHER_MAIL_FROM:}
   agent:
-    process-url: ${AETHER_AGENT_PROCESS_URL:}
+    project-pdf-sync-url: ${AETHER_AGENT_PROJECT_PDF_SYNC_URL:}
     tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:}
   pubsub:
     tenant-topic: ${AETHER_PUBSUB_TENANT_TOPIC:}

@@ -95,11 +95,19 @@ public class UserProfileService {
                 .flatMap(tenantId ->
                         userProfileRepository.findByUsernameAndTenantId(input.getUsername(), tenantId)
                                 .flatMap(existing -> Mono.<AuthPayload>error(
-                                        new IllegalArgumentException("Username '" + input.getUsername() + "' is already taken.")))
+                                        new IllegalArgumentException(
+                                                "Cannot register: the username "
+                                                        + quoteForMessage(input.getUsername())
+                                                        + " is already taken in this organization. "
+                                                        + "Sign in with that account, or choose a different username.")))
                                 .switchIfEmpty(
                                         userProfileRepository.findByEmailAndTenantId(input.getEmail(), tenantId)
                                                 .flatMap(existing -> Mono.<AuthPayload>error(
-                                                        new IllegalArgumentException("Email '" + input.getEmail() + "' is already registered.")))
+                                                        new IllegalArgumentException(
+                                                                "Cannot register: the email address "
+                                                                        + quoteForMessage(input.getEmail())
+                                                                        + " is already registered in this organization. "
+                                                                        + "Sign in, or use a different email address.")))
                                                 .switchIfEmpty(Mono.defer(() -> {
                                                     UserProfile profile = new UserProfile();
                                                     profile.setTenantId(tenantId);
@@ -138,45 +146,85 @@ public class UserProfileService {
                                     return Mono.error(new IllegalArgumentException(
                                             "Organization does not match your workspace."));
                                 }
-                                return userProfileRepository.findByUsernameAndTenantId(input.getUsername(), orgTenantId)
-                                        .flatMap(existing -> Mono.<UserProfile>error(
-                                                new IllegalArgumentException("Username '" + input.getUsername() + "' is already taken.")))
-                                        .switchIfEmpty(
-                                                userProfileRepository.findByEmailAndTenantId(input.getEmail(), orgTenantId)
-                                                        .flatMap(existing -> Mono.<UserProfile>error(
-                                                                new IllegalArgumentException("Email '" + input.getEmail() + "' is already registered.")))
-                                                        .switchIfEmpty(Mono.defer(() ->
-                                                                userProfileRepository.findAllByTenantId(orgTenantId)
-                                                                        .count()
-                                                                        .flatMap(userCount -> {
-                                                                            UserProfile profile = new UserProfile();
-                                                                            profile.setTenantId(orgTenantId);
-                                                                            profile.setOrganizationName(organizationName);
-                                                                            profile.setUsername(input.getUsername());
-                                                                            profile.setPasswordHash(passwordEncoder.encode(input.getPassword()));
-                                                                            profile.setEmail(input.getEmail());
-                                                                            profile.setFirstName(input.getFirstName());
-                                                                            profile.setLastName(input.getLastName());
-                                                                            profile.setDisplayName(input.getDisplayName());
-                                                                            profile.setPhoneNumber(input.getPhoneNumber());
-                                                                            if (input.getHourlyLaborRate() != null) {
-                                                                                profile.setHourlyLaborRate(input.getHourlyLaborRate());
-                                                                            }
-                                                                            UserRole role = userCount == 0
-                                                                                    ? UserRole.ADMIN
-                                                                                    : (input.getRole() != null ? input.getRole() : UserRole.MEMBER);
-                                                                            profile.setRole(role);
-                                                                            profile.setStatus(UserStatus.ACTIVE);
-                                                                            profile.setLoggedIn(false);
-                                                                            Instant now = Instant.now();
-                                                                            profile.setCreatedAt(now);
-                                                                            profile.setUpdatedAt(now);
-                                                                            return userProfileRepository.save(profile);
-                                                                        })
-                                                        ))
-                                        );
+                                Mono<Boolean> usernameTaken = userProfileRepository
+                                        .findByUsernameAndTenantId(input.getUsername(), orgTenantId)
+                                        .hasElement();
+                                Mono<Boolean> emailTaken = userProfileRepository
+                                        .findByEmailAndTenantId(input.getEmail(), orgTenantId)
+                                        .hasElement();
+                                return Mono.zip(usernameTaken, emailTaken)
+                                        .flatMap(tup -> {
+                                            boolean u = Boolean.TRUE.equals(tup.getT1());
+                                            boolean e = Boolean.TRUE.equals(tup.getT2());
+                                            if (u || e) {
+                                                return Mono.error(new IllegalArgumentException(
+                                                        buildAddMemberConflictMessage(
+                                                                input.getUsername(), input.getEmail(), u, e)));
+                                            }
+                                            return userProfileRepository.findAllByTenantId(orgTenantId)
+                                                    .count()
+                                                    .flatMap(userCount -> {
+                                                        UserProfile profile = new UserProfile();
+                                                        profile.setTenantId(orgTenantId);
+                                                        profile.setOrganizationName(organizationName);
+                                                        profile.setUsername(input.getUsername());
+                                                        profile.setPasswordHash(passwordEncoder.encode(input.getPassword()));
+                                                        profile.setEmail(input.getEmail());
+                                                        profile.setFirstName(input.getFirstName());
+                                                        profile.setLastName(input.getLastName());
+                                                        profile.setDisplayName(input.getDisplayName());
+                                                        profile.setPhoneNumber(input.getPhoneNumber());
+                                                        if (input.getHourlyLaborRate() != null) {
+                                                            profile.setHourlyLaborRate(input.getHourlyLaborRate());
+                                                        }
+                                                        UserRole role = userCount == 0
+                                                                ? UserRole.ADMIN
+                                                                : (input.getRole() != null ? input.getRole() : UserRole.MEMBER);
+                                                        profile.setRole(role);
+                                                        profile.setStatus(UserStatus.ACTIVE);
+                                                        profile.setLoggedIn(false);
+                                                        Instant now = Instant.now();
+                                                        profile.setCreatedAt(now);
+                                                        profile.setUpdatedAt(now);
+                                                        return userProfileRepository.save(profile);
+                                                    });
+                                        });
                             });
                 });
+    }
+
+    private static String quoteForMessage(String value) {
+        if (value == null || value.isBlank()) {
+            return "(empty)";
+        }
+        return "\"" + value.trim().replace("\"", "'") + "\"";
+    }
+
+    /**
+     * Explains every conflict when adding a member (username and/or email already used in the tenant).
+     */
+    private static String buildAddMemberConflictMessage(
+            String username, String email, boolean usernameTaken, boolean emailTaken) {
+        String u = quoteForMessage(username);
+        String em = quoteForMessage(email);
+        if (usernameTaken && emailTaken) {
+            return "Cannot add this team member: the username "
+                    + u
+                    + " is already in use in your organization, and the email address "
+                    + em
+                    + " is already assigned to another member. Each person needs a distinct username and email in "
+                    + "your team—change one or both values, or use the existing member instead of creating a duplicate.";
+        }
+        if (usernameTaken) {
+            return "Cannot add this team member: the username "
+                    + u
+                    + " is already in use in your organization. Usernames must be unique—choose a different username "
+                    + "or use the existing team member with that login.";
+        }
+        return "Cannot add this team member: the email address "
+                + em
+                + " is already assigned to another member in your organization. Each email may only be used once—"
+                + "enter a different email or update the existing member’s profile.";
     }
 
     public Mono<AuthPayload> login(LoginInput input) {

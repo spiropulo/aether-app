@@ -23,14 +23,6 @@ public class ProjectEmailGraphqlController {
 
     @MutationMapping
     public Mono<ProjectEmail> sendProjectEmail(@Argument SendProjectEmailInput input) {
-        return projectEmailService.sendEmail(
-                input.getTenantId(),
-                input.getProjectId(),
-                input.getTaskId(),
-                input.getSenderId(),
-                input.getToEmails(),
-                input.getSubject(),
-                input.getBody()
-        );
+        return projectEmailService.send(input);
     }
 }

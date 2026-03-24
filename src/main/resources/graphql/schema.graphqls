@@ -165,6 +165,11 @@ type Task {
   endDate: String
   """Calendar display color (e.g. hex #3B82F6 or preset name)."""
   calendarColor: String
+  """
+  Percentage of offers under this task marked work-complete (0–100).
+  Null when the task has no offers.
+  """
+  offerCompletionPercent: Float
   createdAt: String
   updatedAt: String
 }
@@ -219,6 +224,8 @@ type Offer {
   total: Float
   """User profile IDs of assigned team members."""
   assigneeIds: [String!]
+  """Set by an admin when the line item's work is finished."""
+  workCompleted: Boolean!
   createdAt: String
   updatedAt: String
 }
@@ -242,6 +249,7 @@ input CreateOfferInput {
   unitCost: Float
   duration: String
   assigneeIds: [String!]
+  workCompleted: Boolean
 }
 
 input UpdateOfferInput {
@@ -252,6 +260,7 @@ input UpdateOfferInput {
   unitCost: Float
   duration: String
   assigneeIds: [String!]
+  workCompleted: Boolean
 }
 
 # ─── Auth / User Profile ─────────────────────────────────────────────────────
@@ -492,16 +501,22 @@ type PricingRun {
 
 # ─── Project Email (history & send) ──────────────────────────────────────────
 
-"""Record of an email sent for a project. Stored for history."""
+"""Record of a project notification (email and/or SMS). Stored for history."""
 type ProjectEmail {
   id: ID!
   tenantId: String!
   projectId: String!
-  """When set, email was sent to task assignees only."""
+  """When set, email was sent in a task context (task-level or nested offer)."""
   taskId: String
+  """When set, email was sent from an offer and scoped to that offer's assignees."""
+  offerId: String
   """User profile ID of the sender."""
   senderId: String!
   toEmails: [String!]!
+  """Recipient phone numbers (E.164) when SMS was sent."""
+  toPhoneNumbers: [String!]!
+  """Channels used for this send, e.g. EMAIL, SMS."""
+  deliveryChannels: [String!]!
   subject: String!
   body: String!
   sentAt: String!
@@ -510,11 +525,21 @@ type ProjectEmail {
 input SendProjectEmailInput {
   tenantId: String!
   projectId: String!
-  """When set, send to task assignees only. Otherwise project assignees."""
+  """When set, associates the send with this task (recommended with offerId)."""
   taskId: String
+  """When set, scopes history to this offer; recipients are still chosen in the input."""
+  offerId: String
   senderId: String!
-  toEmails: [String!]!
-  subject: String!
+  toEmails: [String!]
+  """Phone numbers for SMS (any common format; normalized server-side)."""
+  toPhoneNumbers: [String!]
+  """
+  When both this and sendSms are omitted, legacy behavior: send email only if toEmails is non-empty.
+  """
+  sendEmail: Boolean
+  sendSms: Boolean
+  """Required when sendEmail is true (or legacy email-only send)."""
+  subject: String
   body: String
 }
 
@@ -612,7 +637,7 @@ type Mutation {
   deleteTrainingData(id: ID!, tenantId: String!): Boolean!
 
   # Project Email
-  """Send an email to project or task assignees. Stored in history."""
+  """Send email and/or SMS to project or task assignees. Stored in history."""
   sendProjectEmail(input: SendProjectEmailInput!): ProjectEmail!
 
   # Pricing Runs

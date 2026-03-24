@@ -11,6 +11,7 @@ public class UpdateOfferInput {
     private Double unitCost;
     private String duration;
     private List<String> assigneeIds;
+    private Boolean workCompleted;
 
     public String getName() {
         return name;
@@ -66,5 +67,13 @@ public class UpdateOfferInput {
 
     public void setAssigneeIds(List<String> assigneeIds) {
         this.assigneeIds = assigneeIds;
+    }
+
+    public Boolean getWorkCompleted() {
+        return workCompleted;
+    }
+
+    public void setWorkCompleted(Boolean workCompleted) {
+        this.workCompleted = workCompleted;
     }
 }

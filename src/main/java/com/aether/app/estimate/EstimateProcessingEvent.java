@@ -6,7 +6,7 @@ import java.time.Instant;
 
 /**
  * Payload of the Pub/Sub message published when a PDF is uploaded.
- * projectId is set when aether-app creates the project before publishing.
+ * projectId is set when aether-app associates the upload with a project before publishing.
  * Legacy messages may omit projectId (null).
  */
 public record EstimateProcessingEvent(

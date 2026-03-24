@@ -3,6 +3,7 @@ package com.aether.app.offer;
 import com.aether.app.common.PageInput;
 import com.aether.app.common.PagedResult;
 import org.springframework.graphql.data.method.annotation.Argument;
+import org.springframework.graphql.data.method.annotation.ContextValue;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
@@ -49,7 +50,11 @@ public class OfferGraphqlController {
                                    @Argument String tenantId,
                                    @Argument String projectId,
                                    @Argument String taskId,
-                                   @Argument UpdateOfferInput input) {
+                                   @Argument UpdateOfferInput input,
+                                   @ContextValue(name = "authRole", required = false) String authRole) {
+        if (input.getWorkCompleted() != null && !"ADMIN".equals(authRole)) {
+            return Mono.error(new IllegalArgumentException("Only admins can update offer work completion"));
+        }
         return offerService.updateOffer(id, tenantId, projectId, taskId, input);
     }
 

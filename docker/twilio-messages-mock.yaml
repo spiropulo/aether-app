@@ -1,0 +1,48 @@
+# Minimal OpenAPI for Stoplight Prism — mocks Twilio Create Message (form POST).
+# Start: docker compose up -d twilio-mock
+openapi: 3.0.3
+info:
+  title: Twilio Messages API (local mock)
+  version: 1.0.0
+paths:
+  /2010-04-01/Accounts/{AccountSid}/Messages.json:
+    post:
+      operationId: createMessage
+      parameters:
+        - name: AccountSid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - To
+                - From
+                - Body
+              properties:
+                To:
+                  type: string
+                From:
+                  type: string
+                Body:
+                  type: string
+      responses:
+        '201':
+          description: Message created (Twilio-compatible shape)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sid:
+                    type: string
+                  status:
+                    type: string
+              example:
+                sid: SM000000000000000000000000000099
+                status: queued

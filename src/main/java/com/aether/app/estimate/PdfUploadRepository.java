@@ -14,5 +14,10 @@ public interface PdfUploadRepository extends FirestoreReactiveRepository<PdfUplo
 
     Flux<PdfUploadRecord> findByTenantIdAndFileName(String tenantId, String fileName);
 
+    /** Uploads with the same file name are allowed across projects; use this for import-into-project flows. */
+    Flux<PdfUploadRecord> findByTenantIdAndFileNameAndProjectId(String tenantId, String fileName, String projectId);
+
+    Flux<PdfUploadRecord> findByTenantIdAndProjectId(String tenantId, String projectId);
+
     Mono<PdfUploadRecord> findFirstByProjectId(String projectId);
 }

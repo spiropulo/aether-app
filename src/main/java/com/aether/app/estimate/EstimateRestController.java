@@ -26,6 +26,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.http.codec.multipart.Part;
 import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,13 +40,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @Tag(
-        name = "Schema Mapper Agent",
+        name = "Estimate / PDF processing",
         description = "Upload a PDF document. The file is stored in Google Cloud Storage, " +
-                "a record is created in Firestore, and a Pub/Sub event triggers the AI agent " +
-                "to parse the PDF, map every field to the GraphQL schema, and execute the required mutations."
+                "a record is created in Firestore, and a Pub/Sub event triggers the Project PDF Sync agent " +
+                "to import line items (tasks and offers) into the project via GraphQL."
 )
 @RestController
 @RequestMapping("/api/v1/estimate")
@@ -271,6 +273,84 @@ public class EstimateRestController {
                                     return Mono.just(
                                             ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                                                     .<Object>body(Map.of("detail", "Upload failed: " + ex.getMessage())));
+                            });
+                });
+    }
+
+    @Operation(
+            summary = "Import a PDF into an existing project",
+            description = """
+                    Upload a PDF to **this** project. The file is stored, a PDF upload record is created,
+                    and the **Project PDF Sync** AI agent updates tasks and offers under the given project ID only.
+                    Requires `aether.agent.project-pdf-sync-url` on the worker that consumes Pub/Sub.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "202", description = "PDF accepted — queued for Project PDF Sync agent."),
+            @ApiResponse(responseCode = "404", description = "Project not found for this tenant."),
+            @ApiResponse(responseCode = "409", description = "Same file name was already uploaded for this project."),
+            @ApiResponse(responseCode = "422", description = "Not a PDF or empty file."),
+            @ApiResponse(responseCode = "413", description = "File too large."),
+    })
+    @PostMapping(value = "/projects/{projectId}/sync-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<Object>> syncPdfIntoProject(
+            @PathVariable String projectId,
+            @RequestPart("file") Part filePart,
+            @RequestParam(value = "tenant_id", required = false) String tenantId,
+            @RequestParam(value = "uploaded_by", required = false) String uploadedBy) {
+
+        String filename = filePart instanceof FilePart
+                ? ((FilePart) filePart).filename()
+                : (filePart.headers().getContentDisposition() != null
+                        ? filePart.headers().getContentDisposition().getFilename()
+                        : "estimate.pdf");
+        final String finalFilename = (filename == null || filename.isBlank()) ? "estimate.pdf" : filename;
+
+        final String contentType = filePart.headers().getContentType() != null
+                ? filePart.headers().getContentType().toString()
+                : "application/pdf";
+
+        return DataBufferUtils.join(filePart.content())
+                .map(dataBuffer -> {
+                    byte[] bytes = new byte[dataBuffer.readableByteCount()];
+                    dataBuffer.read(bytes);
+                    DataBufferUtils.release(dataBuffer);
+                    return bytes;
+                })
+                .flatMap(bytes -> {
+                    if (bytes.length == 0) {
+                        return Mono.just(ResponseEntity.unprocessableEntity()
+                                .<Object>body(Map.of("detail", "The uploaded file is empty.")));
+                    }
+
+                    if (bytes.length > MAX_FILE_SIZE_BYTES) {
+                        double sizeMb = bytes.length / (1024.0 * 1024.0);
+                        return Mono.just(ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                                .<Object>body(Map.of("detail",
+                                        String.format("File exceeds the 20 MB limit (%.1f MB).", sizeMb))));
+                    }
+
+                    if (!isPdf(finalFilename, contentType, bytes)) {
+                        return Mono.just(ResponseEntity.unprocessableEntity()
+                                .<Object>body(Map.of("detail", "Only PDF files are accepted.")));
+                    }
+
+                    log.info("Project PDF sync upload: projectId={}, filename={}, size={} bytes, tenantId={}",
+                            projectId, finalFilename, bytes.length, tenantId);
+
+                    return estimateService.processForExistingProject(projectId, bytes, finalFilename, "application/pdf", tenantId, uploadedBy)
+                            .map(ack -> ResponseEntity.accepted().<Object>body(ack))
+                            .onErrorResume(IllegalArgumentException.class, ex -> Mono.just(
+                                    ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                            .<Object>body(Map.of("detail", ex.getMessage()))))
+                            .onErrorResume(DuplicateFileNameException.class, ex -> Mono.just(
+                                    ResponseEntity.status(HttpStatus.CONFLICT)
+                                            .<Object>body(Map.of("detail", ex.getMessage()))))
+                            .onErrorResume(ex -> {
+                                log.error("Project PDF sync upload failed", ex);
+                                return Mono.just(
+                                        ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                                .<Object>body(Map.of("detail", "Upload failed: " + ex.getMessage())));
                             });
                 });
     }
@@ -528,6 +608,61 @@ public class EstimateRestController {
                 .onErrorResume(ex -> Mono.just(
                         ResponseEntity.status(HttpStatus.NOT_FOUND)
                                 .<Object>body(Map.of("detail", "PDF not found or access denied."))));
+    }
+
+    @Operation(
+            summary = "List PDF uploads for a project",
+            operationId = "list_project_uploads_api_v1_estimate_projects_projectId_uploads_get",
+            description = "Returns PDF upload records scoped to the given project (import/sync), newest first."
+    )
+    @GetMapping(value = "/projects/{projectId}/uploads", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<Object>> listProjectUploads(
+            @Parameter(description = "Project ID", required = true) @PathVariable String projectId,
+            @Parameter(description = "Tenant ID", required = true, example = "tenant-123")
+            @RequestParam(value = "tenant_id") String tenantId) {
+        return projectService.getProject(projectId, tenantId)
+                .flatMap(p -> estimateService.listUploadsByProjectSorted(tenantId, projectId)
+                        .map(list -> ResponseEntity.ok().<Object>body(list)))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("detail", "Project not found or access denied."))));
+    }
+
+    @Operation(
+            summary = "Delete a PDF upload",
+            operationId = "delete_upload_api_v1_estimate_uploads_id_delete",
+            description = "Removes the upload record and deletes the file from storage when configured. Does not delete any project."
+    )
+    @DeleteMapping("/uploads/{id}")
+    public Mono<ResponseEntity<Object>> deleteUpload(
+            @Parameter(description = "Upload record ID", required = true) @PathVariable String id,
+            @Parameter(description = "Tenant ID", required = true, example = "tenant-123")
+            @RequestParam(value = "tenant_id") String tenantId) {
+        return estimateService.deleteUpload(id, tenantId, null)
+                .then(Mono.fromCallable(() -> ResponseEntity.noContent().<Object>build()))
+                .onErrorResume(NoSuchElementException.class, ex ->
+                        Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(Map.of("detail", ex.getMessage()))));
+    }
+
+    @Operation(
+            summary = "Delete a PDF upload for a project",
+            operationId = "delete_project_upload_api_v1_estimate_projects_projectId_uploads_uploadId_delete",
+            description = "Same as tenant-wide delete, but the upload must belong to the given project."
+    )
+    @DeleteMapping("/projects/{projectId}/uploads/{uploadId}")
+    public Mono<ResponseEntity<Object>> deleteProjectUpload(
+            @Parameter(description = "Project ID", required = true) @PathVariable String projectId,
+            @Parameter(description = "Upload record ID", required = true) @PathVariable String uploadId,
+            @Parameter(description = "Tenant ID", required = true, example = "tenant-123")
+            @RequestParam(value = "tenant_id") String tenantId) {
+        return projectService.getProject(projectId, tenantId)
+                .flatMap(p -> estimateService.deleteUpload(uploadId, tenantId, projectId)
+                        .then(Mono.fromCallable(() -> ResponseEntity.noContent().<Object>build())))
+                .switchIfEmpty(Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("detail", "Project not found or access denied."))))
+                .onErrorResume(NoSuchElementException.class, ex ->
+                        Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(Map.of("detail", ex.getMessage()))));
     }
 
     // ── Validation helpers ────────────────────────────────────────────────────

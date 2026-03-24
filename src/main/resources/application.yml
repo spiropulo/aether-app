@@ -26,8 +26,8 @@ springdoc:
 
 aether:
   agent:
-    # Schema Mapper Agent base URL for PDF processing. When set, Pub/Sub listener forwards PDFs here.
-    process-url: ${AETHER_AGENT_PROCESS_URL:}
+    # Project PDF Sync agent (Aether AI): POST .../api/v1/project-pdf-sync/process. Pub/Sub listener forwards PDFs here when set.
+    project-pdf-sync-url: ${AETHER_AGENT_PROJECT_PDF_SYNC_URL:}
     # Tenant-Adaptive Agent for project pricing (agentic pricing workflow).
     tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:}
     # Aether AI: POST /api/v1/pricing-training/parse — NL → structured pricing facts JSON.
@@ -53,6 +53,15 @@ aether:
     enabled: ${AETHER_MAIL_ENABLED:false}
     # From address for outgoing emails. Defaults to spring.mail.username or noreply@localhost.
     from: ${AETHER_MAIL_FROM:}
+  sms:
+    # When false (default), SMS is disabled and sendSms requests fail until Twilio is configured.
+    enabled: ${AETHER_SMS_ENABLED:false}
+    # Production: omit TWILIO_API_BASE_URL (defaults to https://api.twilio.com). Local Prism mock: http://localhost:4010
+    twilio-api-base-url: ${TWILIO_API_BASE_URL:https://api.twilio.com}
+    twilio-account-sid: ${TWILIO_ACCOUNT_SID:}
+    twilio-auth-token: ${TWILIO_AUTH_TOKEN:}
+    # Twilio phone number (E.164), e.g. +15551234567 (any plausible E.164 is fine for local Prism)
+    twilio-from-number: ${TWILIO_FROM_NUMBER:}
   stripe:
     # Secret key. Set STRIPE_SECRET_KEY env var, OR replace the line below with a literal: secret-key: sk_test_51H...
     secret-key: ${STRIPE_SECRET_KEY:}

@@ -21,36 +21,32 @@ public class EstimateAgentClient {
     private static final Logger log = LoggerFactory.getLogger(EstimateAgentClient.class);
 
     private final WebClient webClient;
-    private final String processUrl;
+    private final String projectPdfSyncUrl;
 
     public EstimateAgentClient(WebClient.Builder webClientBuilder,
-                               @Value("${aether.agent.process-url:}") String processUrl) {
-        this.processUrl = processUrl != null ? processUrl.strip() : "";
-        this.webClient = this.processUrl.isBlank()
+                               @Value("${aether.agent.project-pdf-sync-url:}") String projectPdfSyncUrl) {
+        this.projectPdfSyncUrl = projectPdfSyncUrl != null ? projectPdfSyncUrl.strip() : "";
+        this.webClient = this.projectPdfSyncUrl.isBlank()
                 ? null
                 : webClientBuilder.build();
     }
 
+    /** True when the Project PDF Sync agent URL is set (PDF import into a project). */
     public boolean isConfigured() {
-        return webClient != null && !processUrl.isBlank();
+        return webClient != null && !projectPdfSyncUrl.isBlank();
     }
 
     /**
-     * POSTs the PDF to the Schema Mapper agent. Inputs: file, project_id, tenant_id (query).
-     * No training data — the schema-mapper only parses PDF and maps to GraphQL.
-     *
-     * @param pdfBytes   PDF file bytes
-     * @param fileName   Original file name
-     * @param tenantId   Tenant ID (sent as query param)
-     * @param projectId  Project ID (required; created by aether-app upstream)
+     * POSTs the PDF to the Project PDF Sync agent (mutations locked to the given project).
      */
-    public Mono<String> processPdf(byte[] pdfBytes, String fileName, String tenantId, String projectId) {
+    public Mono<String> processProjectPdfSync(byte[] pdfBytes, String fileName, String tenantId, String projectId) {
         if (!isConfigured()) {
-            return Mono.error(new IllegalStateException("aether.agent.process-url is not configured"));
+            return Mono.error(new IllegalStateException(
+                    "aether.agent.project-pdf-sync-url is not configured "
+                            + "(e.g. http://localhost:8055/api/v1/project-pdf-sync/process)"));
         }
         if (projectId == null || projectId.isBlank()) {
-            return Mono.error(new IllegalArgumentException(
-                    "project_id is required by the Aether AI schema. The project must be created upstream before processing."));
+            return Mono.error(new IllegalArgumentException("project_id is required."));
         }
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
@@ -66,7 +62,7 @@ public class EstimateAgentClient {
         body.add("project_id", projectId);
 
         String effectiveTenant = tenantId != null && !tenantId.isBlank() ? tenantId : "default";
-        String uri = UriComponentsBuilder.fromUriString(processUrl)
+        String uri = UriComponentsBuilder.fromUriString(projectPdfSyncUrl)
                 .queryParam("tenant_id", effectiveTenant)
                 .build()
                 .toUriString();
@@ -77,7 +73,7 @@ public class EstimateAgentClient {
                 .body(BodyInserters.fromMultipartData(body))
                 .retrieve()
                 .bodyToMono(String.class)
-                .doOnSuccess(r -> log.info("Agent processed PDF successfully: {}", fileName))
-                .doOnError(e -> log.error("Agent failed to process PDF: {}", fileName, e));
+                .doOnSuccess(r -> log.info("Project PDF sync agent processed: {}", fileName))
+                .doOnError(e -> log.error("Project PDF sync agent failed: {}", fileName, e));
     }
 }

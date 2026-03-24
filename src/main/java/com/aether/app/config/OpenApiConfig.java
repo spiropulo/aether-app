@@ -18,20 +18,16 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("Aether App")
-                        .summary("AI-powered PDF → GraphQL schema mapper built on Google ADK.")
+                        .summary("REST API for projects, estimates, and AI-assisted PDF import.")
                         .description("""
                                 ## Overview
 
                                 **Aether App** exposes a REST API that:
 
-                                1. Accepts any **PDF document** via a `multipart/form-data` upload.
-                                2. Stores the PDF durably in **Google Cloud Storage**.
-                                3. Creates a tracking record in **Firestore** (file name, location, size, upload date, uploader).
-                                4. Publishes a **Pub/Sub event** that triggers the AI agent asynchronously.
-                                5. Returns an immediate **acknowledgment** — callers don't need to wait for processing.
-
-                                The AI agent then parses the PDF, fetches the live GraphQL schema, maps every\s
-                                field to the correct input types, and executes the required mutations in dependency order.
+                                1. Accepts **PDF estimate** uploads via `multipart/form-data`.
+                                2. Stores the PDF in **Google Cloud Storage** and a record in **Firestore**.
+                                3. Publishes a **Pub/Sub event** so the **Project PDF Sync** agent (Aether AI) can import tasks and offers into the project.
+                                4. Returns an immediate **acknowledgment** — processing is asynchronous.
 
                                 ## Swagger UI
                                 Interactive docs are available at `/swagger-ui.html`.
@@ -47,10 +43,9 @@ public class OpenApiConfig {
                         .license(new License().name("Proprietary")))
                 .tags(List.of(
                         new Tag()
-                                .name("Schema Mapper Agent")
-                                .description("Upload a PDF document and let the AI agent parse its contents, " +
-                                        "map every field to the GraphQL schema, execute the required mutations, " +
-                                        "and return a full structured report."),
+                                .name("Estimate / PDF processing")
+                                .description("PDF uploads, pricing requests, and related estimate endpoints. " +
+                                        "Pub/Sub triggers the Project PDF Sync agent for line-item import."),
                         new Tag()
                                 .name("System")
                                 .description("Root and health-check endpoints.")

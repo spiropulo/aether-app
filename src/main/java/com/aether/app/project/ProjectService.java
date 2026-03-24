@@ -148,6 +148,32 @@ public class ProjectService {
         return m;
     }
 
+    /** Clears {@link Project#getSourcePdfUploadId()} when it matches the deleted upload id. */
+    public Mono<Void> clearSourcePdfUploadIfMatches(String projectId, String tenantId, String uploadId) {
+        if (uploadId == null || uploadId.isBlank()) {
+            return Mono.empty();
+        }
+        return projectRepository.findByIdAndTenantId(projectId, tenantId)
+                .flatMap(p -> {
+                    if (!uploadId.equals(p.getSourcePdfUploadId())) {
+                        return Mono.<Void>empty();
+                    }
+                    p.setSourcePdfUploadId(null);
+                    p.setUpdatedAt(Instant.now());
+                    return projectRepository.save(p).then();
+                });
+    }
+
+    /** Sets the source PDF upload record id for an existing project (e.g. import-from-PDF on project detail). */
+    public Mono<Project> setSourcePdfUploadId(String projectId, String tenantId, String sourcePdfUploadId) {
+        return projectRepository.findByIdAndTenantId(projectId, tenantId)
+                .flatMap(existing -> {
+                    existing.setSourcePdfUploadId(sourcePdfUploadId);
+                    existing.setUpdatedAt(Instant.now());
+                    return projectRepository.save(existing);
+                });
+    }
+
     public Mono<Boolean> deleteProject(String id, String tenantId) {
         return projectRepository.findByIdAndTenantId(id, tenantId)
                 .flatMap(existing -> projectRepository.delete(existing).thenReturn(true));

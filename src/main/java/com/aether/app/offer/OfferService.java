@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,6 +60,7 @@ public class OfferService {
     public Mono<java.util.Set<String>> findDistinctProjectIdsForAssignee(String tenantId, String userProfileId) {
         return offerRepository.findAllByTenantIdAndAssigneeIdsContaining(tenantId, userProfileId)
                 .map(Offer::getProjectId)
+                .filter(Objects::nonNull)
                 .collectList()
                 .map(HashSet::new);
     }
@@ -83,6 +85,7 @@ public class OfferService {
         offer.setUnitCost(input.getUnitCost());
         offer.setDuration(input.getDuration());
         offer.setAssigneeIds(input.getAssigneeIds());
+        offer.setWorkCompleted(Boolean.TRUE.equals(input.getWorkCompleted()));
         offer.setTotal(computeTotal(input.getQuantity(), input.getUnitCost()));
         Instant now = Instant.now();
         offer.setCreatedAt(now);
@@ -123,6 +126,9 @@ public class OfferService {
                     if (input.getAssigneeIds() != null) {
                         existing.setAssigneeIds(input.getAssigneeIds());
                     }
+                    if (input.getWorkCompleted() != null) {
+                        existing.setWorkCompleted(input.getWorkCompleted());
+                    }
                     existing.setTotal(computeTotal(existing.getQuantity(), existing.getUnitCost()));
                     existing.setUpdatedAt(Instant.now());
                     return offerRepository.save(existing);
@@ -134,6 +140,21 @@ public class OfferService {
             return null;
         }
         return quantity * unitCost;
+    }
+
+    /**
+     * Share of offers under this task marked work-complete (0–100). Empty when the task has no offers.
+     */
+    public Mono<Double> getOfferCompletionPercent(String tenantId, String projectId, String taskId) {
+        return offerRepository.findAllByTaskIdAndProjectIdAndTenantId(taskId, projectId, tenantId)
+                .collectList()
+                .flatMap(list -> {
+                    if (list.isEmpty()) {
+                        return Mono.empty();
+                    }
+                    long done = list.stream().filter(Offer::isWorkCompleted).count();
+                    return Mono.just((done * 100.0) / list.size());
+                });
     }
 
     public Mono<Boolean> deleteOffer(String id, String tenantId, String projectId, String taskId) {

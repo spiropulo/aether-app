@@ -8,7 +8,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Record of an email sent for a project. Stored for history/audit.
+ * Record of a project notification (email and/or SMS). Stored for history/audit.
  */
 @Document(collectionName = "projectEmails")
 public class ProjectEmail {
@@ -22,14 +22,23 @@ public class ProjectEmail {
     @NotBlank
     private String projectId;
 
-    /** Optional: when email was sent to task assignees only. */
+    /** Optional: task context for this send. */
     private String taskId;
+
+    /** Optional: when set, send was scoped to this offer's assignees in the UI. */
+    private String offerId;
 
     /** User profile ID of the sender. */
     private String senderId;
 
     /** Recipient email addresses. */
     private List<String> toEmails;
+
+    /** Recipient phone numbers (E.164) when SMS was used. */
+    private List<String> toPhoneNumbers;
+
+    /** e.g. EMAIL, SMS — order reflects what was sent. */
+    private List<String> deliveryChannels;
 
     private String subject;
     private String body;
@@ -71,6 +80,14 @@ public class ProjectEmail {
         this.taskId = taskId;
     }
 
+    public String getOfferId() {
+        return offerId;
+    }
+
+    public void setOfferId(String offerId) {
+        this.offerId = offerId;
+    }
+
     public String getSenderId() {
         return senderId;
     }
@@ -80,11 +97,30 @@ public class ProjectEmail {
     }
 
     public List<String> getToEmails() {
-        return toEmails;
+        return toEmails != null ? toEmails : List.of();
     }
 
     public void setToEmails(List<String> toEmails) {
         this.toEmails = toEmails;
+    }
+
+    public List<String> getToPhoneNumbers() {
+        return toPhoneNumbers != null ? toPhoneNumbers : List.of();
+    }
+
+    public void setToPhoneNumbers(List<String> toPhoneNumbers) {
+        this.toPhoneNumbers = toPhoneNumbers;
+    }
+
+    public List<String> getDeliveryChannels() {
+        if (deliveryChannels != null && !deliveryChannels.isEmpty()) {
+            return deliveryChannels;
+        }
+        return List.of("EMAIL");
+    }
+
+    public void setDeliveryChannels(List<String> deliveryChannels) {
+        this.deliveryChannels = deliveryChannels;
     }
 
     public String getSubject() {

@@ -51,8 +51,8 @@ aether:
     emulator-host: ${STORAGE_EMULATOR_HOST:http://localhost:9195}
     bucket-name: ${GCS_BUCKET_NAME:aether-estimates}
   agent:
-    # Schema Mapper Agent (Aether AI). Default for local: agent runs on port 8055.
-    process-url: ${AETHER_AGENT_PROCESS_URL:http://localhost:8055/api/v1/schema-mapper/process}
+    # Project PDF Sync (Aether AI). Default: agent on port 8055.
+    project-pdf-sync-url: ${AETHER_AGENT_PROJECT_PDF_SYNC_URL:http://localhost:8055/api/v1/project-pdf-sync/process}
     # Tenant-Adaptive Agent for project pricing.
     tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:http://localhost:8055/api/v1/tenant-adaptive/process}
     pricing-parse-url: ${AETHER_AGENT_PRICING_PARSE_URL:http://localhost:8055/api/v1/pricing-training/parse}

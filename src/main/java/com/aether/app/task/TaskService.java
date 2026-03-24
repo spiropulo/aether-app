@@ -34,6 +34,10 @@ public class TaskService {
         return taskRepository.findByIdAndProjectIdAndTenantId(id, projectId, tenantId);
     }
 
+    /**
+     * Creates a task, or returns the existing task if the same name already exists in the project.
+     * Idempotent by (tenantId, projectId, name) so PDF/agents can safely re-call createTask when re-importing.
+     */
     public Mono<Task> createTask(CreateTaskInput input) {
         String name = input.getName();
         if (name == null || name.isBlank()) {
@@ -41,11 +45,8 @@ public class TaskService {
         }
         return taskRepository.findAllByTenantIdAndProjectIdAndName(
                         input.getTenantId(), input.getProjectId(), name)
-                .hasElements()
-                .flatMap(exists -> {
-                    if (Boolean.TRUE.equals(exists)) {
-                        return Mono.<Task>error(new DuplicateTaskNameException(input.getProjectId(), name));
-                    }
+                .next()
+                .switchIfEmpty(Mono.defer(() -> {
                     Task task = new Task();
                     task.setTenantId(input.getTenantId());
                     task.setProjectId(input.getProjectId());
@@ -59,7 +60,7 @@ public class TaskService {
                     task.setCreatedAt(now);
                     task.setUpdatedAt(now);
                     return taskRepository.save(task);
-                });
+                }));
     }
 
     public Mono<Task> updateTask(String id, String tenantId, String projectId, UpdateTaskInput input) {

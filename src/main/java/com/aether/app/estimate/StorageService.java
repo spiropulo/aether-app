@@ -77,6 +77,19 @@ public class StorageService {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
+    /**
+     * Deletes the object at {@code gcsPath}. No-op success if storage is not configured.
+     */
+    public Mono<Void> deleteObject(String gcsPath) {
+        if (storage == null || gcsPath == null || gcsPath.isBlank()) {
+            return Mono.empty();
+        }
+        return Mono.fromRunnable(() -> {
+            BlobId blobId = parseGcsPath(gcsPath);
+            storage.delete(blobId);
+        }).subscribeOn(Schedulers.boundedElastic()).then();
+    }
+
     private static BlobId parseGcsPath(String gcsPath) {
         if (gcsPath == null || !gcsPath.startsWith("gs://")) {
             throw new IllegalArgumentException("Invalid GCS path: " + gcsPath);

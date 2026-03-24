@@ -34,6 +34,9 @@ public class Offer {
     /** User profile IDs of assigned team members. */
     private java.util.List<String> assigneeIds;
 
+    /** When true, an admin has marked this line item's work as complete. */
+    private boolean workCompleted;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -134,6 +137,14 @@ public class Offer {
 
     public void setAssigneeIds(java.util.List<String> assigneeIds) {
         this.assigneeIds = assigneeIds;
+    }
+
+    public boolean isWorkCompleted() {
+        return workCompleted;
+    }
+
+    public void setWorkCompleted(boolean workCompleted) {
+        this.workCompleted = workCompleted;
     }
 
     public Instant getCreatedAt() {

@@ -30,5 +30,20 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
       MP_SMTP_AUTH_ALLOW_INSECURE: "1"
 
+  # Twilio-compatible SMS API mock (Stoplight Prism). Set TWILIO_API_BASE_URL=http://localhost:4010 (see README).
+  twilio-mock:
+    image: stoplight/prism:5
+    container_name: twilio-mock
+    # Prism v5: no --validate-request; use --errors only if you want violations as HTTP errors (default false).
+    command:
+      - mock
+      - --host
+      - "0.0.0.0"
+      - /spec/twilio-messages-mock.yaml
+    volumes:
+      - ./docker/twilio-messages-mock.yaml:/spec/twilio-messages-mock.yaml:ro
+    ports:
+      - "4010:4010"
+
 volumes:
   fake-gcs-data:
