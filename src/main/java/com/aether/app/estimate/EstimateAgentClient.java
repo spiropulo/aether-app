@@ -2,6 +2,7 @@ package com.aether.app.estimate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.aether.app.config.AgentGoogleIdTokenFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
@@ -23,12 +24,18 @@ public class EstimateAgentClient {
     private final WebClient webClient;
     private final String projectPdfSyncUrl;
 
-    public EstimateAgentClient(WebClient.Builder webClientBuilder,
+    public EstimateAgentClient(AgentGoogleIdTokenFilter agentGoogleIdTokenFilter,
                                @Value("${aether.agent.project-pdf-sync-url:}") String projectPdfSyncUrl) {
         this.projectPdfSyncUrl = projectPdfSyncUrl != null ? projectPdfSyncUrl.strip() : "";
-        this.webClient = this.projectPdfSyncUrl.isBlank()
-                ? null
-                : webClientBuilder.build();
+        if (this.projectPdfSyncUrl.isBlank()) {
+            this.webClient = null;
+        } else {
+            WebClient.Builder wb = WebClient.builder();
+            if (agentGoogleIdTokenFilter.isEnabled()) {
+                wb = wb.filter(agentGoogleIdTokenFilter);
+            }
+            this.webClient = wb.build();
+        }
     }
 
     /** True when the Project PDF Sync agent URL is set (PDF import into a project). */

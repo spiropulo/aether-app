@@ -2,6 +2,7 @@ package com.aether.app.estimate;
 
 import java.time.Duration;
 
+import com.aether.app.config.AgentGoogleIdTokenFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,15 +25,20 @@ public class TenantAdaptiveAgentClient {
     private final WebClient webClient;
     private final String processUrl;
 
-    public TenantAdaptiveAgentClient(WebClient.Builder webClientBuilder,
+    public TenantAdaptiveAgentClient(AgentGoogleIdTokenFilter agentGoogleIdTokenFilter,
                                      @Value("${aether.agent.tenant-adaptive-url:}") String processUrl) {
         this.processUrl = processUrl != null ? processUrl.strip() : "";
-        this.webClient = this.processUrl.isBlank()
-                ? null
-                : webClientBuilder
-                        .clientConnector(new ReactorClientHttpConnector(
-                                HttpClient.create().responseTimeout(Duration.ofMinutes(10))))
-                        .build();
+        if (this.processUrl.isBlank()) {
+            this.webClient = null;
+        } else {
+            WebClient.Builder wb = WebClient.builder()
+                    .clientConnector(new ReactorClientHttpConnector(
+                            HttpClient.create().responseTimeout(Duration.ofMinutes(10))));
+            if (agentGoogleIdTokenFilter.isEnabled()) {
+                wb = wb.filter(agentGoogleIdTokenFilter);
+            }
+            this.webClient = wb.build();
+        }
     }
 
     public boolean isConfigured() {

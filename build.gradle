@@ -42,6 +42,9 @@ dependencies {
     // Stripe payments
     implementation 'com.stripe:stripe-java:28.0.0'
 
+    // Google ID tokens (Cloud Run → Cloud Run)
+    implementation 'com.google.auth:google-auth-library-oauth2-http:1.30.0'
+
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'

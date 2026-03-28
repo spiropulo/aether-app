@@ -3,6 +3,7 @@ package com.aether.app.estimate;
 import java.time.Duration;
 import java.util.Map;
 
+import com.aether.app.config.AgentGoogleIdTokenFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,15 +27,20 @@ public class PricingParseClient {
     private final WebClient webClient;
     private final String parseUrl;
 
-    public PricingParseClient(WebClient.Builder webClientBuilder,
+    public PricingParseClient(AgentGoogleIdTokenFilter agentGoogleIdTokenFilter,
                               @Value("${aether.agent.pricing-parse-url:}") String parseUrl) {
         this.parseUrl = parseUrl != null ? parseUrl.strip() : "";
-        this.webClient = this.parseUrl.isBlank()
-                ? null
-                : webClientBuilder
-                        .clientConnector(new ReactorClientHttpConnector(
-                                HttpClient.create().responseTimeout(Duration.ofMinutes(2))))
-                        .build();
+        if (this.parseUrl.isBlank()) {
+            this.webClient = null;
+        } else {
+            WebClient.Builder wb = WebClient.builder()
+                    .clientConnector(new ReactorClientHttpConnector(
+                            HttpClient.create().responseTimeout(Duration.ofMinutes(2))));
+            if (agentGoogleIdTokenFilter.isEnabled()) {
+                wb = wb.filter(agentGoogleIdTokenFilter);
+            }
+            this.webClient = wb.build();
+        }
     }
 
     public boolean isConfigured() {

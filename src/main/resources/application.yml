@@ -12,7 +12,8 @@ spring:
     max-in-memory-size: 20MB
 
 server:
-  port: 8080
+  # Cloud Run sets PORT; local default 8080
+  port: ${PORT:8080}
 
 springdoc:
   swagger-ui:
@@ -32,6 +33,9 @@ aether:
     tenant-adaptive-url: ${AETHER_AGENT_TENANT_ADAPTIVE_URL:}
     # Aether AI: POST /api/v1/pricing-training/parse — NL → structured pricing facts JSON.
     pricing-parse-url: ${AETHER_AGENT_PRICING_PARSE_URL:}
+    # Cloud Run → Cloud Run: base URL of the aether-ai service (https://…run.app) for Google ID tokens on outbound agent calls.
+    id-token:
+      audience: ${AETHER_AGENT_ID_TOKEN_AUDIENCE:}
   pubsub:
     # Optional: emit tenant lifecycle events (TENANT_CREATED/UPDATED/DELETED)
     tenant-topic: ${AETHER_PUBSUB_TENANT_TOPIC:}

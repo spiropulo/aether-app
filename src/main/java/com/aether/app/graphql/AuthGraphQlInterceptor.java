@@ -15,6 +15,8 @@ import java.util.Map;
 /**
  * Puts {@code authUserId}, {@code authTenantId}, and {@code authRole} from a valid Bearer JWT
  * into the GraphQL context so resolvers can scope data to the signed-in user.
+ * <p>When behind the Cloud Run UI gateway, the browser JWT is sent as {@code X-Aether-User-Authorization}
+ * so {@code Authorization} can carry the Google ID token for service authentication.
  */
 @Component
 public class AuthGraphQlInterceptor implements WebGraphQlInterceptor {
@@ -27,7 +29,11 @@ public class AuthGraphQlInterceptor implements WebGraphQlInterceptor {
 
     @Override
     public Mono<WebGraphQlResponse> intercept(WebGraphQlRequest request, Chain chain) {
-        String header = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        // Cloud Run gateway forwards the browser JWT here so the service can use a Google ID token on Authorization.
+        String header = request.getHeaders().getFirst("X-Aether-User-Authorization");
+        if (header == null || header.isBlank()) {
+            header = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        }
         if (header != null && header.regionMatches(true, 0, "Bearer ", 0, 7)) {
             String token = header.substring(7).trim();
             if (!token.isEmpty()) {
